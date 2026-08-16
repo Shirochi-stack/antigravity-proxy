@@ -376,6 +376,44 @@ describe("Unit Tests: transformGoogleEventToOpenAI", () => {
     expect(result.provider_block_reason).toBe("SAFETY_RATING_BLOCKED");
   });
 
+  test("Canonical Google prohibited-use refusal maps to content_filter", () => {
+    const refusal = "The prompt could not be submitted. The prompt contains sensitive words that violate Google's [Generative AI Prohibited Use policy](https://policies.google.com/terms/generative-ai/use-policy). Try rephrasing the prompt. If you think this was an error, [send feedback](https://ai.google.dev/gemini-api/docs/troubleshooting).";
+    const googleData = {
+      response: {
+        candidates: [{
+          content: {
+            parts: [{ text: refusal }]
+          }
+        }]
+      }
+    };
+
+    const result = transformGoogleEventToOpenAI(googleData, "gemini-3.7-flash-medium");
+
+    expect(result.choices[0].delta.content).toBe(refusal);
+    expect(result.choices[0].finish_reason).toBe("content_filter");
+    expect(result.provider_finish_reason).toBeNull();
+    expect(result.provider_block_reason).toBe("GOOGLE_PROHIBITED_USE_POLICY_MESSAGE");
+    expect(result.provider_block_message).toBe(refusal);
+  });
+
+  test("Non-canonical missing-finish text is not classified as a policy block", () => {
+    const googleData = {
+      response: {
+        candidates: [{
+          content: {
+            parts: [{ text: "The prompt could not be submitted." }]
+          }
+        }]
+      }
+    };
+
+    const result = transformGoogleEventToOpenAI(googleData, "gemini-3.7-flash-medium");
+
+    expect(result.choices[0].finish_reason).toBeNull();
+    expect(result.provider_block_reason).toBeNull();
+  });
+
   test("Unspecified prompt feedback is not treated as a block", () => {
     const googleData = {
       candidates: [{

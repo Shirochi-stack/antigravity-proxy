@@ -13,6 +13,7 @@ const GEMINI_35_FLASH_MEDIUM_ALIAS = "gemini-3.5-flash-medium";
 const GEMINI_35_FLASH_LOW_WIRE_MODEL = "gemini-3.5-flash-low";
 const GEMINI_35_FLASH_HIGH_ALIAS = "gemini-3.5-flash-high";
 const GEMINI_35_FLASH_HIGH_WIRE_MODEL = "gemini-3-flash-agent";
+const GOOGLE_PROHIBITED_USE_POLICY_MESSAGE = "The prompt could not be submitted. The prompt contains sensitive words that violate Google's [Generative AI Prohibited Use policy](https://policies.google.com/terms/generative-ai/use-policy). Try rephrasing the prompt. If you think this was an error, [send feedback](https://ai.google.dev/gemini-api/docs/troubleshooting).";
 export const GEMINI_35_FLASH_ALIASES = [
   GEMINI_35_FLASH_EXTRA_LOW_ALIAS,
   GEMINI_35_FLASH_LOW_ALIAS,
@@ -564,6 +565,13 @@ export function transformGoogleEventToOpenAI(googleData: any, model: string, req
     candidateSafetyRatings.some((rating: any) =>
       rating?.blocked === true || String(rating?.blocked).toLowerCase() === "true"
     );
+  const hasCanonicalGooglePolicyBlock =
+    finishReason === undefined &&
+    !hasPromptBlock &&
+    !hasBlockedCandidateSafetyRating &&
+    parts.length === 1 &&
+    typeof parts[0]?.text === "string" &&
+    parts[0].text.trim() === GOOGLE_PROHIBITED_USE_POLICY_MESSAGE;
   
   if (parts.length === 0 && !finishReason && !usage && !hasPromptBlock && !hasBlockedCandidateSafetyRating) return null;
   
@@ -626,7 +634,7 @@ export function transformGoogleEventToOpenAI(googleData: any, model: string, req
   }
   
   let openaiFinishReason: string | null = null;
-  if (hasPromptBlock || hasBlockedCandidateSafetyRating) {
+  if (hasPromptBlock || hasBlockedCandidateSafetyRating || hasCanonicalGooglePolicyBlock) {
     openaiFinishReason = "content_filter";
   } else if (finishReason) {
     if (toolCalls.length > 0 || hasPriorToolCalls) {
@@ -658,8 +666,11 @@ export function transformGoogleEventToOpenAI(googleData: any, model: string, req
     provider_finish_reason: finishReason ?? null,
     provider_block_reason: hasPromptBlock
       ? promptBlockReasonText
-      : (hasBlockedCandidateSafetyRating ? "SAFETY_RATING_BLOCKED" : null),
-    provider_block_message: promptBlockMessage,
+      : (hasBlockedCandidateSafetyRating
+          ? "SAFETY_RATING_BLOCKED"
+          : (hasCanonicalGooglePolicyBlock ? "GOOGLE_PROHIBITED_USE_POLICY_MESSAGE" : null)),
+    provider_block_message: promptBlockMessage ??
+      (hasCanonicalGooglePolicyBlock ? GOOGLE_PROHIBITED_USE_POLICY_MESSAGE : undefined),
     _signature: extractedSignature,
     _thought: extractedThought
   };
