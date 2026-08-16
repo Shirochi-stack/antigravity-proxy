@@ -7,11 +7,15 @@ const TOOL_NAME_REMAP_CACHE = new Map<string, string>();
 const GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
 const GEMINI_37_FLASH_WIRE_MODEL = "gemini-3.7-flash-tiered";
 const GEMINI_31_PRO_HIGH_WIRE_MODEL = "gemini-pro-agent";
+const GEMINI_35_FLASH_EXTRA_LOW_ALIAS = "gemini-3.5-flash-extra-low";
+const GEMINI_35_FLASH_LOW_ALIAS = "gemini-3.5-flash-low";
 const GEMINI_35_FLASH_MEDIUM_ALIAS = "gemini-3.5-flash-medium";
-const GEMINI_35_FLASH_MEDIUM_WIRE_MODEL = "gemini-3.5-flash-low";
+const GEMINI_35_FLASH_LOW_WIRE_MODEL = "gemini-3.5-flash-low";
 const GEMINI_35_FLASH_HIGH_ALIAS = "gemini-3.5-flash-high";
 const GEMINI_35_FLASH_HIGH_WIRE_MODEL = "gemini-3-flash-agent";
 export const GEMINI_35_FLASH_ALIASES = [
+  GEMINI_35_FLASH_EXTRA_LOW_ALIAS,
+  GEMINI_35_FLASH_LOW_ALIAS,
   GEMINI_35_FLASH_MEDIUM_ALIAS,
   GEMINI_35_FLASH_HIGH_ALIAS
 ] as const;
@@ -118,17 +122,19 @@ export function transformToGoogleBody(
 
   const isGemini37Flash = baseModel === GEMINI_37_FLASH_MODEL ||
                           baseModel === GEMINI_37_FLASH_WIRE_MODEL;
-  const gemini35FlashWireModel = resolvedModel === GEMINI_35_FLASH_MEDIUM_ALIAS ||
-                                 resolvedModel === GEMINI_35_FLASH_MEDIUM_WIRE_MODEL
-      ? GEMINI_35_FLASH_MEDIUM_WIRE_MODEL
-      : resolvedModel === GEMINI_35_FLASH_HIGH_ALIAS ||
-        resolvedModel === GEMINI_35_FLASH_HIGH_WIRE_MODEL
-          ? GEMINI_35_FLASH_HIGH_WIRE_MODEL
-          : undefined;
-  const gemini35FlashThinkingLevel = gemini35FlashWireModel === GEMINI_35_FLASH_MEDIUM_WIRE_MODEL
-      ? "medium"
-      : gemini35FlashWireModel === GEMINI_35_FLASH_HIGH_WIRE_MODEL
-          ? "high"
+  const gemini35FlashThinkingLevel = resolvedModel === GEMINI_35_FLASH_EXTRA_LOW_ALIAS ||
+                                    resolvedModel === GEMINI_35_FLASH_LOW_ALIAS
+      ? "low"
+      : resolvedModel === GEMINI_35_FLASH_MEDIUM_ALIAS
+          ? "medium"
+          : resolvedModel === GEMINI_35_FLASH_HIGH_ALIAS ||
+            resolvedModel === GEMINI_35_FLASH_HIGH_WIRE_MODEL
+              ? "high"
+              : undefined;
+  const gemini35FlashWireModel = gemini35FlashThinkingLevel === "high"
+      ? GEMINI_35_FLASH_HIGH_WIRE_MODEL
+      : gemini35FlashThinkingLevel
+          ? GEMINI_35_FLASH_LOW_WIRE_MODEL
           : undefined;
 
   // Force Claude model IDs to strip tier for the backend
@@ -151,7 +157,7 @@ export function transformToGoogleBody(
       "gemini-3.1-pro-preview",
       GEMINI_31_PRO_HIGH_WIRE_MODEL,
       ...GEMINI_35_FLASH_ALIASES,
-      GEMINI_35_FLASH_MEDIUM_WIRE_MODEL,
+      GEMINI_35_FLASH_LOW_WIRE_MODEL,
       GEMINI_35_FLASH_HIGH_WIRE_MODEL,
       GEMINI_37_FLASH_MODEL,
       GEMINI_37_FLASH_WIRE_MODEL,

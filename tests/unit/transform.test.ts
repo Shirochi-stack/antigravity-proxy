@@ -120,8 +120,12 @@ describe("Unit Tests: transformToGoogleBody", () => {
 
   test("Gemini 3.5 Flash aliases map to their wire models and request thought summaries", () => {
     const aliases = [
+      ["gemini-3.5-flash-extra-low", "gemini-3.5-flash-low", "low"],
+      ["gemini-3.5-flash-low", "gemini-3.5-flash-low", "low"],
       ["gemini-3.5-flash-medium", "gemini-3.5-flash-low", "medium"],
       ["gemini-3.5-flash-high", "gemini-3-flash-agent", "high"],
+      ["antigravity-gemini-3.5-flash-extra-low", "gemini-3.5-flash-low", "low"],
+      ["antigravity-gemini-3.5-flash-low", "gemini-3.5-flash-low", "low"],
       ["antigravity-gemini-3.5-flash-medium", "gemini-3.5-flash-low", "medium"],
       ["antigravity-gemini-3.5-flash-high", "gemini-3-flash-agent", "high"]
     ] as const;
