@@ -361,7 +361,8 @@ Bun.serve({
                     "Cache-Control": "no-cache",
                     "Connection": "keep-alive",
                     "Access-Control-Allow-Origin": "*",
-                    "X-Antigravity-Attempts": attempts.toString()
+                    "X-Antigravity-Attempts": attempts.toString(),
+                    "X-Antigravity-Account": account.email
                   }
                 });
               } else {
@@ -451,7 +452,8 @@ Bun.serve({
                    headers: { 
                        "Content-Type": "application/json", 
                        "Access-Control-Allow-Origin": "*",
-                       "X-Antigravity-Attempts": attempts.toString()
+                       "X-Antigravity-Attempts": attempts.toString(),
+                       "X-Antigravity-Account": account.email
                    } 
                });
              }
