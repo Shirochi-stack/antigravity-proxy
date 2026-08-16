@@ -7,6 +7,14 @@ const TOOL_NAME_REMAP_CACHE = new Map<string, string>();
 const GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
 const GEMINI_37_FLASH_WIRE_MODEL = "gemini-3.7-flash-tiered";
 const GEMINI_31_PRO_HIGH_WIRE_MODEL = "gemini-pro-agent";
+const GEMINI_35_FLASH_MEDIUM_ALIAS = "gemini-3.5-flash-medium";
+const GEMINI_35_FLASH_MEDIUM_WIRE_MODEL = "gemini-3.5-flash-low";
+const GEMINI_35_FLASH_HIGH_ALIAS = "gemini-3.5-flash-high";
+const GEMINI_35_FLASH_HIGH_WIRE_MODEL = "gemini-3-flash-agent";
+export const GEMINI_35_FLASH_ALIASES = [
+  GEMINI_35_FLASH_MEDIUM_ALIAS,
+  GEMINI_35_FLASH_HIGH_ALIAS
+] as const;
 export const GEMINI_37_FLASH_ALIASES = [
   "gemini-3.7-flash-low",
   "gemini-3.7-flash-medium",
@@ -110,6 +118,13 @@ export function transformToGoogleBody(
 
   const isGemini37Flash = baseModel === GEMINI_37_FLASH_MODEL ||
                           baseModel === GEMINI_37_FLASH_WIRE_MODEL;
+  const gemini35FlashWireModel = resolvedModel === GEMINI_35_FLASH_MEDIUM_ALIAS ||
+                                 resolvedModel === GEMINI_35_FLASH_MEDIUM_WIRE_MODEL
+      ? GEMINI_35_FLASH_MEDIUM_WIRE_MODEL
+      : resolvedModel === GEMINI_35_FLASH_HIGH_ALIAS ||
+        resolvedModel === GEMINI_35_FLASH_HIGH_WIRE_MODEL
+          ? GEMINI_35_FLASH_HIGH_WIRE_MODEL
+          : undefined;
 
   // Force Claude model IDs to strip tier for the backend
         if (googleModel.includes("claude")) {
@@ -130,6 +145,9 @@ export function transformToGoogleBody(
       "gemini-3.1-pro",
       "gemini-3.1-pro-preview",
       GEMINI_31_PRO_HIGH_WIRE_MODEL,
+      ...GEMINI_35_FLASH_ALIASES,
+      GEMINI_35_FLASH_MEDIUM_WIRE_MODEL,
+      GEMINI_35_FLASH_HIGH_WIRE_MODEL,
       GEMINI_37_FLASH_MODEL,
       GEMINI_37_FLASH_WIRE_MODEL,
       "gemini-3-flash",
@@ -148,7 +166,9 @@ export function transformToGoogleBody(
 
   if (isCli) {
       if (!googleModel.includes("claude")) {
-          if (isGemini37Flash) {
+          if (gemini35FlashWireModel) {
+              googleModel = gemini35FlashWireModel;
+          } else if (isGemini37Flash) {
               googleModel = GEMINI_37_FLASH_WIRE_MODEL;
           // Standardize older Gemini 3 CLI models to use -preview suffix
           } else if (googleModel.includes("gemini-3")) {
@@ -176,7 +196,9 @@ export function transformToGoogleBody(
        }
        
        if (isNative) {
-           if (isGemini37Flash) {
+           if (gemini35FlashWireModel) {
+               googleModel = gemini35FlashWireModel;
+           } else if (isGemini37Flash) {
                googleModel = GEMINI_37_FLASH_WIRE_MODEL;
            } else if (baseModel.includes("gemini-3.1-pro")) {
                googleModel = extractedTier === "low"
@@ -383,7 +405,7 @@ You are pair programming with a USER to solve their coding task. The task may re
     sessionId: sessionId || crypto.randomUUID()
   };
 
-  if (isThinkingModel || googleModel.includes("gemini-3")) {
+  if ((isThinkingModel || googleModel.includes("gemini-3")) && !gemini35FlashWireModel) {
     if (isGemini37Flash) {
       googleRequest.generationConfig.thinkingConfig = {
         includeThoughts: true,

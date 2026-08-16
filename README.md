@@ -76,6 +76,14 @@ Add the following provider to your `~/.config/opencode/opencode.json` under the 
                 "name": "Gemini 3.7 Flash High (Antigravity)",
                 "limit": { "context": 1048576, "output": 65536 }
             },
+            "gemini-3.5-flash-medium": {
+                "name": "Gemini 3.5 Flash Medium (Antigravity)",
+                "limit": { "context": 1048576, "output": 65536 }
+            },
+            "gemini-3.5-flash-high": {
+                "name": "Gemini 3.5 Flash High (Antigravity)",
+                "limit": { "context": 1048576, "output": 65536 }
+            },
             "antigravity-gemini-3.1-pro-low": {
                 "name": "Gemini 3.1 Pro Low (Antigravity)",
                 "limit": { "context": 1048576, "output": 65535 }

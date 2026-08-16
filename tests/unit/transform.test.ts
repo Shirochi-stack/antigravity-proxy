@@ -96,6 +96,27 @@ describe("Unit Tests: transformToGoogleBody", () => {
     }
   });
 
+  test("Gemini 3.5 Flash aliases map to their tier-specific wire models", () => {
+    const aliases = [
+      ["gemini-3.5-flash-medium", "gemini-3.5-flash-low"],
+      ["gemini-3.5-flash-high", "gemini-3-flash-agent"],
+      ["antigravity-gemini-3.5-flash-medium", "gemini-3.5-flash-low"],
+      ["antigravity-gemini-3.5-flash-high", "gemini-3-flash-agent"]
+    ] as const;
+
+    for (const [model, expectedWireModel] of aliases) {
+      for (const isCli of [false, true]) {
+        const result = transformToGoogleBody({
+          model,
+          messages: [{ role: "user", content: "Hi" }]
+        }, "p", isCli, "us-central1");
+
+        expect(result.model).toBe(expectedWireModel);
+        expect(result.request.generationConfig.thinkingConfig).toBeUndefined();
+      }
+    }
+  });
+
   test("Multi-turn conversation", () => {
     const openaiBody = {
       model: "gemini-1.5-pro",
