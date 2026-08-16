@@ -9,7 +9,7 @@ const APP_VERSION = pkg.version || "0.0.0";
 import { initManager, getBestAccount, updateAccountUsage, addAccount, getAccounts, removeAccount, getStrategy, setStrategy, saveAccounts, emitAccountFlash, eventBus, getEarliestReset, markCooldown, ensureFingerprint, regenerateFingerprint, getCooldowns, resetAccount, flagAccountChallenge, flagModelUnsupported, updateAccountProject, getFamilyName, resetAllCooldowns } from "./auth/manager";
 import { type SelectionStrategy, type AntigravityAccount } from "./auth/types";
 import { generateAuthUrl, exchangeCode, getUserEmail, getProjectId } from "./auth/oauth";
-import { transformToGoogleBody, transformGoogleEventToOpenAI, createOpenAIStreamTransformer, getOriginalToolName } from "./utils/transform";
+import { transformToGoogleBody, transformGoogleEventToOpenAI, createOpenAIStreamTransformer, getOriginalToolName, GEMINI_37_FLASH_ALIASES } from "./utils/transform";
 import { getImpersonationHeaders, getGeminiCliHeaders, generateFingerprint } from "./utils/headers";
 import { refreshAllQuotas, fetchQuota, supportedModelsCache } from "./api/quota";
 import { parseGoogleError } from "./utils/errors";
@@ -73,7 +73,11 @@ Bun.serve({
     }
 
     if (cleanPath === "/v1/models") {
-        const models = Array.from(supportedModelsCache).sort().map(id => ({
+        const supportedModels = new Set([
+            ...supportedModelsCache,
+            ...GEMINI_37_FLASH_ALIASES
+        ]);
+        const models = Array.from(supportedModels).sort().map(id => ({
             id,
             object: "model",
             created: Math.floor(Date.now() / 1000),
@@ -98,6 +102,7 @@ Bun.serve({
       const modelLower = openaiBody.model.toLowerCase();
       const isClaudeModel = modelLower.includes("claude");
       const isGptModel = modelLower.includes("gpt");
+      const isGemini37Flash = modelLower.includes("gemini-3.7-flash");
 
       let useCliPool: boolean;
       if (isClaudeModel) {
@@ -111,7 +116,8 @@ Bun.serve({
                                         modelLower.includes("thinking-low"));
 
           const isExplicitAntigravity = modelLower.includes("antigravity-");
-          const isExplicitSandboxModel = isAntigravityThinking || isExplicitAntigravity || modelLower.includes("image");
+          const isExplicitSandboxModel = isAntigravityThinking || isExplicitAntigravity ||
+                                         isGemini37Flash || modelLower.includes("image");
 
           useCliPool = !isExplicitSandboxModel && (
               modelLower.includes("-preview") || 
@@ -133,7 +139,7 @@ Bun.serve({
       
       // GPT and Claude models are Sandbox-preferred. Explicit antigravity- models are also Sandbox-only.
       const isExplicitAntigravity = modelLower.includes("antigravity-");
-      const isSandboxOnlyModel = modelLower.includes("gpt") || isExplicitAntigravity;
+      const isSandboxOnlyModel = modelLower.includes("gpt") || isExplicitAntigravity || isGemini37Flash;
       const isCliOnlyModel = false;
       const CLAUDE_REGIONS = ["us-central1", "us-east5", "europe-west1"];
       

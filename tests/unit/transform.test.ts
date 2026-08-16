@@ -1,6 +1,11 @@
 
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { transformToGoogleBody, transformGoogleEventToOpenAI } from "../../src/utils/transform";
+import { loadProxyConfig } from "../../src/config/manager";
+
+beforeAll(async () => {
+  await loadProxyConfig();
+});
 
 describe("Unit Tests: transformToGoogleBody", () => {
   test("Basic message transformation", () => {
@@ -41,6 +46,36 @@ describe("Unit Tests: transformToGoogleBody", () => {
     const result = transformToGoogleBody(openaiBody, "p", true, "us-central1"); // isCli = true
     expect(result.model).toBe("gemini-3-flash-preview");
     expect(result.request.generationConfig.thinkingConfig.thinkingLevel).toBe("medium");
+  });
+
+  for (const tier of ["low", "medium", "high"]) {
+    test(`Gemini 3.7 Flash ${tier} alias mapping`, () => {
+      const openaiBody = {
+        model: `gemini-3.7-flash-${tier}`,
+        messages: [{ role: "user", content: "Hi" }]
+      };
+
+      for (const isCli of [false, true]) {
+        const result = transformToGoogleBody(openaiBody, "p", isCli, "us-central1");
+        const thinkingConfig = result.request.generationConfig.thinkingConfig;
+
+        expect(result.model).toBe("gemini-3.7-flash-tiered");
+        expect(thinkingConfig.includeThoughts).toBe(true);
+        expect(thinkingConfig.thinkingLevel).toBe(tier);
+        expect(thinkingConfig.thinkingBudget).toBeUndefined();
+      }
+    });
+  }
+
+  test("Gemini 3.7 Flash defaults to medium thinking", () => {
+    const result = transformToGoogleBody({
+      model: "gemini-3.7-flash",
+      messages: [{ role: "user", content: "Hi" }]
+    }, "p", false, "us-central1");
+
+    expect(result.model).toBe("gemini-3.7-flash-tiered");
+    expect(result.request.generationConfig.thinkingConfig.thinkingLevel).toBe("medium");
+    expect(result.request.generationConfig.thinkingConfig.thinkingBudget).toBeUndefined();
   });
 
   test("Multi-turn conversation", () => {

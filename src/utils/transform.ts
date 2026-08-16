@@ -4,6 +4,14 @@ import { getProxyConfig } from "../config/manager";
 
 const TOOL_NAME_REMAP_CACHE = new Map<string, string>();
 
+const GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
+const GEMINI_37_FLASH_WIRE_MODEL = "gemini-3.7-flash-tiered";
+export const GEMINI_37_FLASH_ALIASES = [
+  "gemini-3.7-flash-low",
+  "gemini-3.7-flash-medium",
+  "gemini-3.7-flash-high"
+] as const;
+
 function sanitizeFunctionName(name: string): string {
   if (/^[a-zA-Z_]/.test(name) && /^[a-zA-Z0-9_]+$/.test(name)) {
     return name;
@@ -99,6 +107,9 @@ export function transformToGoogleBody(
       baseModel = baseModel.replace(previewMatch[0], "");
   }
 
+  const isGemini37Flash = baseModel === GEMINI_37_FLASH_MODEL ||
+                          baseModel === GEMINI_37_FLASH_WIRE_MODEL;
+
   // Force Claude model IDs to strip tier for the backend
         if (googleModel.includes("claude")) {
             googleModel = baseModel;
@@ -117,6 +128,8 @@ export function transformToGoogleBody(
       "gemini-3.1-pro-low",
       "gemini-3.1-pro",
       "gemini-3.1-pro-preview",
+      GEMINI_37_FLASH_MODEL,
+      GEMINI_37_FLASH_WIRE_MODEL,
       "gemini-3-flash",
       "gemini-3-pro-high", 
       "gemini-3-pro-low",
@@ -133,8 +146,10 @@ export function transformToGoogleBody(
 
   if (isCli) {
       if (!googleModel.includes("claude")) {
-          // Standardize Gemini 3 CLI models to use -preview suffix
-          if (googleModel.includes("gemini-3")) {
+          if (isGemini37Flash) {
+              googleModel = GEMINI_37_FLASH_WIRE_MODEL;
+          // Standardize older Gemini 3 CLI models to use -preview suffix
+          } else if (googleModel.includes("gemini-3")) {
               googleModel = baseModel; // Strip tiers
               if (!googleModel.endsWith("-preview")) {
                   googleModel = `${googleModel}-preview`;
@@ -159,7 +174,9 @@ export function transformToGoogleBody(
        }
        
        if (isNative) {
-           if (baseModel.includes("gemini-3.1-pro")) {
+           if (isGemini37Flash) {
+               googleModel = GEMINI_37_FLASH_WIRE_MODEL;
+           } else if (baseModel.includes("gemini-3.1-pro")) {
                googleModel = `gemini-3.1-pro-${extractedTier || "high"}`;
            } else if (baseModel.includes("gemini-3-pro")) {
                // Respect extracted tier for Gemini 3 Pro, fallback to high
@@ -363,13 +380,20 @@ You are pair programming with a USER to solve their coding task. The task may re
   };
 
   if (isThinkingModel || googleModel.includes("gemini-3")) {
-    googleRequest.generationConfig.thinkingConfig = {
-      includeThoughts: true,
-      thinkingBudget: thinkingBudget || 16000
-    };
-    
-    if (googleModel.includes("gemini-3")) {
-        googleRequest.generationConfig.thinkingConfig.thinkingLevel = extractedTier || "low";
+    if (isGemini37Flash) {
+      googleRequest.generationConfig.thinkingConfig = {
+        includeThoughts: true,
+        thinkingLevel: extractedTier || "medium"
+      };
+    } else {
+      googleRequest.generationConfig.thinkingConfig = {
+        includeThoughts: true,
+        thinkingBudget: thinkingBudget || 16000
+      };
+
+      if (googleModel.includes("gemini-3")) {
+          googleRequest.generationConfig.thinkingConfig.thinkingLevel = extractedTier || "low";
+      }
     }
   }
 
