@@ -148,9 +148,13 @@ Bun.serve({
       const isCliOnlyModel = false;
       const CLAUDE_REGIONS = ["us-central1", "us-east5", "europe-west1"];
       
-      const clientId = req.headers.get("x-client-id") || url.searchParams.get("client_id") || "unknown";
+      const requestedRotation = req.headers.get("x-antigravity-rotation")?.trim().toLowerCase();
+      const forceRoundRobin = requestedRotation === "round-robin";
+      const clientId = forceRoundRobin
+        ? undefined
+        : req.headers.get("x-client-id") || url.searchParams.get("client_id") || "unknown";
       const firstMsg = openaiBody.messages?.[0]?.content || "";
-      const userIdent = openaiBody.user || clientId;
+      const userIdent = openaiBody.user || clientId || "automatic-rotation";
       const stableSeed = `${userIdent}:${typeof firstMsg === 'string' ? firstMsg : JSON.stringify(firstMsg)}`;
       const sessionId = firstMsg ? new Bun.CryptoHasher("sha256").update(stableSeed).digest("hex") : crypto.randomUUID();
 
@@ -172,12 +176,12 @@ Bun.serve({
                 }
             }
 
-            let account = await getBestAccount(useCliPool ? "cli" : "sandbox", openaiBody.model, clientId, triedEmails, true);
+            let account = await getBestAccount(useCliPool ? "cli" : "sandbox", openaiBody.model, clientId, triedEmails, true, forceRoundRobin);
             
             if (!account && !isSandboxOnlyModel && !isCliOnlyModel) {
                 console.log(`[Manager] No READY accounts in ${useCliPool ? 'CLI' : 'Sandbox'} pool, trying the other pool first...`);
                 const otherPool = useCliPool ? "sandbox" : "cli";
-                account = await getBestAccount(otherPool, openaiBody.model, clientId, triedEmails, true);
+                account = await getBestAccount(otherPool, openaiBody.model, clientId, triedEmails, true, forceRoundRobin);
                 if (account) {
                     useCliPool = !useCliPool;
                     console.log(`[Switch] Found ready account in ${useCliPool ? 'CLI' : 'Sandbox'} pool.`);
@@ -185,7 +189,7 @@ Bun.serve({
             }
 
             if (!account) {
-                account = await getBestAccount(useCliPool ? "cli" : "sandbox", openaiBody.model, clientId, triedEmails, false);
+                account = await getBestAccount(useCliPool ? "cli" : "sandbox", openaiBody.model, clientId, triedEmails, false, forceRoundRobin);
             }
             
             if (!account || !account.accessToken) {

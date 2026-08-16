@@ -9,6 +9,7 @@ let accounts: AntigravityAccount[] = [];
 let currentStrategy: SelectionStrategy = 'hybrid';
 let lastAccountIndex = -1;
 const clientStickyMap = new Map<string, string>();
+const roundRobinLastEmail = new Map<string, string>();
 const cooldownMap = new Map<string, number>();
 
 export const eventBus = new EventEmitter();
@@ -165,7 +166,17 @@ function getPidOffset(): number {
   return process.pid % Math.max(accounts.length, 1);
 }
 
-export async function getBestAccount(pool?: 'cli' | 'sandbox', model?: string, clientId?: string, excludeEmails: string[] = [], skipRescue: boolean = false): Promise<AntigravityAccount | null> {
+export function selectRoundRobinCandidate<T extends { email: string }>(candidates: T[], rotationKey: string): T | null {
+  if (candidates.length === 0) return null;
+
+  const lastEmail = roundRobinLastEmail.get(rotationKey);
+  const lastIndex = lastEmail ? candidates.findIndex(candidate => candidate.email === lastEmail) : -1;
+  const selected = candidates[(lastIndex + 1) % candidates.length];
+  roundRobinLastEmail.set(rotationKey, selected.email);
+  return selected;
+}
+
+export async function getBestAccount(pool?: 'cli' | 'sandbox', model?: string, clientId?: string, excludeEmails: string[] = [], skipRescue: boolean = false, forceRoundRobin: boolean = false): Promise<AntigravityAccount | null> {
   if (accounts.length === 0) return null;
   const now = Date.now();
   const usable = accounts.filter(a => a.refreshToken && !a.challenge && !excludeEmails.includes(a.email));
@@ -216,6 +227,11 @@ export async function getBestAccount(pool?: 'cli' | 'sandbox', model?: string, c
     }
     
     if (candidates.length === 0) return null;
+
+    if (forceRoundRobin) {
+      const selected = selectRoundRobinCandidate(candidates, `${pool}|${family}`);
+      return selected ? await ensureAccountReady(selected) : null;
+    }
     
     if (clientId && excludeEmails.length === 0) {
       const stickyEmail = clientStickyMap.get(clientId);
