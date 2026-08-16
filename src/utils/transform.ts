@@ -14,6 +14,7 @@ const GEMINI_35_FLASH_LOW_WIRE_MODEL = "gemini-3.5-flash-low";
 const GEMINI_35_FLASH_HIGH_ALIAS = "gemini-3.5-flash-high";
 const GEMINI_35_FLASH_HIGH_WIRE_MODEL = "gemini-3-flash-agent";
 const GOOGLE_PROHIBITED_USE_POLICY_MESSAGE = "The prompt could not be submitted. The prompt contains sensitive words that violate Google's [Generative AI Prohibited Use policy](https://policies.google.com/terms/generative-ai/use-policy). Try rephrasing the prompt. If you think this was an error, [send feedback](https://ai.google.dev/gemini-api/docs/troubleshooting).";
+const GOOGLE_OUTPUT_TOKEN_TERMINATION_RESERVE = 4;
 export const GEMINI_35_FLASH_ALIASES = [
   GEMINI_35_FLASH_EXTRA_LOW_ALIAS,
   GEMINI_35_FLASH_LOW_ALIAS,
@@ -504,7 +505,13 @@ You are pair programming with a USER to solve their coding task. The task may re
   };
 }
 
-export function transformGoogleEventToOpenAI(googleData: any, model: string, requestId?: string, hasPriorToolCalls: boolean = false): any {
+export function transformGoogleEventToOpenAI(
+  googleData: any,
+  model: string,
+  requestId?: string,
+  hasPriorToolCalls: boolean = false,
+  maxOutputTokens?: number
+): any {
   const data = googleData.response || googleData;
   const requestIdActual = requestId || "chatcmpl-" + Math.random().toString(36).substring(7);
   const promptFeedback = data.promptFeedback || data.prompt_feedback ||
@@ -520,10 +527,26 @@ export function transformGoogleEventToOpenAI(googleData: any, model: string, req
                          !promptBlockReasonUpper.includes("UNSPECIFIED");
   const promptBlockMessage = promptFeedback?.blockReasonMessage ?? promptFeedback?.block_reason_message;
   
-  const usage = data.usageMetadata ? {
-    prompt_tokens: data.usageMetadata.promptTokenCount || 0,
-    completion_tokens: data.usageMetadata.candidatesTokenCount || 0,
-    total_tokens: data.usageMetadata.totalTokenCount || 0
+  const usageMetadata = data.usageMetadata || data.usage_metadata;
+  const promptTokenCount = Number(
+    usageMetadata?.promptTokenCount ?? usageMetadata?.prompt_token_count ?? 0
+  ) || 0;
+  const candidatesTokenCount = Number(
+    usageMetadata?.candidatesTokenCount ?? usageMetadata?.candidates_token_count ?? 0
+  ) || 0;
+  const thoughtsTokenCount = Number(
+    usageMetadata?.thoughtsTokenCount ?? usageMetadata?.thoughts_token_count ?? 0
+  ) || 0;
+  const totalTokenCount = Number(
+    usageMetadata?.totalTokenCount ?? usageMetadata?.total_token_count ?? 0
+  ) || 0;
+  const usage = usageMetadata ? {
+    prompt_tokens: promptTokenCount,
+    completion_tokens: candidatesTokenCount,
+    total_tokens: totalTokenCount,
+    ...(thoughtsTokenCount > 0 ? {
+      completion_tokens_details: { reasoning_tokens: thoughtsTokenCount }
+    } : {})
   } : undefined;
 
   if (!data.candidates || data.candidates.length === 0) {
@@ -559,7 +582,24 @@ export function transformGoogleEventToOpenAI(googleData: any, model: string, req
   
   const candidate = data.candidates[0];
   const parts = candidate.content?.parts || [];
-  const finishReason = candidate.finishReason;
+  const finishReason = candidate.finishReason ?? candidate.finish_reason ?? candidate.finishReasonEnum ?? candidate.finish_reason_enum;
+  const finishReasonText = finishReason === undefined || finishReason === null
+    ? ""
+    : String(finishReason);
+  const finishReasonUpper = finishReasonText.toUpperCase();
+  const finishReasonCode = Number(finishReason);
+  const isProviderStop = finishReasonCode === 1 || finishReasonUpper === "STOP" ||
+    finishReasonUpper.endsWith("_STOP");
+  const effectiveMaxOutputTokens = Number(maxOutputTokens);
+  const generatedTokenCount = candidatesTokenCount + thoughtsTokenCount;
+  const remainingOutputTokenBudget = effectiveMaxOutputTokens - generatedTokenCount;
+  const hasGoogleThinkingBudgetExhaustion =
+    isProviderStop &&
+    thoughtsTokenCount > 0 &&
+    Number.isFinite(effectiveMaxOutputTokens) &&
+    effectiveMaxOutputTokens > GOOGLE_OUTPUT_TOKEN_TERMINATION_RESERVE &&
+    remainingOutputTokenBudget >= 0 &&
+    remainingOutputTokenBudget <= GOOGLE_OUTPUT_TOKEN_TERMINATION_RESERVE;
   const candidateSafetyRatings = candidate.safetyRatings || candidate.safety_ratings || [];
   const hasBlockedCandidateSafetyRating = Array.isArray(candidateSafetyRatings) &&
     candidateSafetyRatings.some((rating: any) =>
@@ -636,19 +676,34 @@ export function transformGoogleEventToOpenAI(googleData: any, model: string, req
   let openaiFinishReason: string | null = null;
   if (hasPromptBlock || hasBlockedCandidateSafetyRating || hasCanonicalGooglePolicyBlock) {
     openaiFinishReason = "content_filter";
-  } else if (finishReason) {
+  } else if (hasGoogleThinkingBudgetExhaustion) {
+    openaiFinishReason = "length";
+  } else if (finishReason !== undefined && finishReason !== null) {
     if (toolCalls.length > 0 || hasPriorToolCalls) {
       openaiFinishReason = "tool_calls";
-    } else if (finishReason === "STOP") {
-      openaiFinishReason = "stop";
-    } else if (finishReason === "MAX_TOKENS") {
+    } else if (finishReasonCode === 2 || (finishReasonUpper.includes("MAX") && finishReasonUpper.includes("TOKEN"))) {
       openaiFinishReason = "length";
-    } else if (finishReason === "SAFETY") {
+    } else if (isProviderStop) {
+      openaiFinishReason = "stop";
+    } else if (
+      finishReasonCode === 3 ||
+      finishReasonCode === 4 ||
+      finishReasonCode === 6 ||
+      finishReasonCode === 7 ||
+      finishReasonCode === 8 ||
+      finishReasonCode === 9 ||
+      finishReasonCode === 11 ||
+      finishReasonUpper.includes("SAFETY") ||
+      finishReasonUpper.includes("RECITATION") ||
+      finishReasonUpper.includes("BLOCK") ||
+      finishReasonUpper.includes("PROHIBITED") ||
+      finishReasonUpper.includes("SPII")
+    ) {
       openaiFinishReason = "content_filter";
-    } else if (finishReason === "MALFORMED_FUNCTION_CALL") {
+    } else if (finishReasonCode === 10 || finishReasonUpper.includes("MALFORMED_FUNCTION_CALL")) {
       openaiFinishReason = "tool_calls";
     } else {
-      openaiFinishReason = "stop";
+      openaiFinishReason = finishReasonText.toLowerCase();
     }
   }
   
@@ -664,6 +719,13 @@ export function transformGoogleEventToOpenAI(googleData: any, model: string, req
     }],
     usage: usage,
     provider_finish_reason: finishReason ?? null,
+    finish_reason_source: hasGoogleThinkingBudgetExhaustion
+      ? "usage_metadata_output_budget_exhausted"
+      : (finishReason === undefined || finishReason === null ? null : "provider_finish_reason"),
+    provider_generated_tokens: usageMetadata ? generatedTokenCount : null,
+    provider_max_output_tokens: Number.isFinite(effectiveMaxOutputTokens)
+      ? effectiveMaxOutputTokens
+      : null,
     provider_block_reason: hasPromptBlock
       ? promptBlockReasonText
       : (hasBlockedCandidateSafetyRating
@@ -676,7 +738,13 @@ export function transformGoogleEventToOpenAI(googleData: any, model: string, req
   };
 }
 
-export function createOpenAIStreamTransformer(model: string, requestId: string, hasPriorToolCalls: boolean, sessionId?: string) {
+export function createOpenAIStreamTransformer(
+  model: string,
+  requestId: string,
+  hasPriorToolCalls: boolean,
+  sessionId?: string,
+  maxOutputTokens?: number
+) {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let buffer = "";
@@ -699,7 +767,13 @@ export function createOpenAIStreamTransformer(model: string, requestId: string, 
           }
           try {
             const googleEvent = JSON.parse(dataStr);
-            const openaiEvent = transformGoogleEventToOpenAI(googleEvent, model, requestId, currentHasPriorToolCalls);
+            const openaiEvent = transformGoogleEventToOpenAI(
+              googleEvent,
+              model,
+              requestId,
+              currentHasPriorToolCalls,
+              maxOutputTokens
+            );
             
             if (openaiEvent) {
               if (sessionId && openaiEvent._signature && openaiEvent._thought) {
@@ -734,7 +808,13 @@ export function createOpenAIStreamTransformer(model: string, requestId: string, 
         if (dataStr !== "[DONE]") {
           try {
             const googleEvent = JSON.parse(dataStr);
-            const openaiEvent = transformGoogleEventToOpenAI(googleEvent, model, requestId, currentHasPriorToolCalls);
+            const openaiEvent = transformGoogleEventToOpenAI(
+              googleEvent,
+              model,
+              requestId,
+              currentHasPriorToolCalls,
+              maxOutputTokens
+            );
             if (openaiEvent) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(openaiEvent)}\n\n`));
             }

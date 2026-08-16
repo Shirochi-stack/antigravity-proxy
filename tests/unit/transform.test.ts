@@ -275,6 +275,93 @@ describe("Unit Tests: transformGoogleEventToOpenAI", () => {
     expect(result.choices[0].finish_reason).toBe("stop");
   });
 
+  test("Thinking usage at Google's termination reserve overrides a misreported STOP", () => {
+    const googleData = {
+      response: {
+        candidates: [{
+          content: {
+            parts: [{ text: '<html><body><p><img alt="39' }]
+          },
+          finishReasonEnum: "STOP"
+        }],
+        usageMetadata: {
+          promptTokenCount: 8767,
+          candidatesTokenCount: 39,
+          thoughtsTokenCount: 957,
+          totalTokenCount: 9763
+        }
+      }
+    };
+
+    const result = transformGoogleEventToOpenAI(
+      googleData,
+      "gemini-3.7-flash-medium",
+      "req-thinking-limit",
+      false,
+      1000
+    );
+
+    expect(result.choices[0].finish_reason).toBe("length");
+    expect(result.provider_finish_reason).toBe("STOP");
+    expect(result.finish_reason_source).toBe("usage_metadata_output_budget_exhausted");
+    expect(result.provider_generated_tokens).toBe(996);
+    expect(result.provider_max_output_tokens).toBe(1000);
+    expect(result.usage.completion_tokens).toBe(39);
+    expect(result.usage.completion_tokens_details.reasoning_tokens).toBe(957);
+  });
+
+  test("STOP below Google's termination reserve remains stop", () => {
+    const googleData = {
+      candidates: [{
+        content: { parts: [{ text: "Complete response." }] },
+        finish_reason_enum: "STOP"
+      }],
+      usage_metadata: {
+        prompt_token_count: 100,
+        candidates_token_count: 39,
+        thoughts_token_count: 956,
+        total_token_count: 1095
+      }
+    };
+
+    const result = transformGoogleEventToOpenAI(
+      googleData,
+      "gemini-3.7-flash-medium",
+      "req-thinking-below-limit",
+      false,
+      1000
+    );
+
+    expect(result.choices[0].finish_reason).toBe("stop");
+    expect(result.provider_finish_reason).toBe("STOP");
+    expect(result.finish_reason_source).toBe("provider_finish_reason");
+  });
+
+  test("Non-thinking STOP at the same token count remains stop", () => {
+    const googleData = {
+      candidates: [{
+        content: { parts: [{ text: "Complete response." }] },
+        finishReason: "STOP"
+      }],
+      usageMetadata: {
+        promptTokenCount: 100,
+        candidatesTokenCount: 996,
+        totalTokenCount: 1096
+      }
+    };
+
+    const result = transformGoogleEventToOpenAI(
+      googleData,
+      "gemini-2.0-flash",
+      "req-nonthinking-stop",
+      false,
+      1000
+    );
+
+    expect(result.choices[0].finish_reason).toBe("stop");
+    expect(result.finish_reason_source).toBe("provider_finish_reason");
+  });
+
   test("Tool call response", () => {
     const googleData = {
       candidates: [{

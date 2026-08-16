@@ -346,7 +346,13 @@ Bun.serve({
                      });
                  }
 
-                 const stream = googleRes.body.pipeThrough(createOpenAIStreamTransformer(openaiBody.model, requestId, false, sessionId));
+                 const stream = googleRes.body.pipeThrough(createOpenAIStreamTransformer(
+                   openaiBody.model,
+                   requestId,
+                   false,
+                   sessionId,
+                   googleBody.request?.generationConfig?.maxOutputTokens
+                 ));
 
                  await updateAccountUsage(account.email, true, openaiBody.model, useCliPool ? "cli" : "sandbox", clientId);
                  return new Response(stream, {
@@ -361,7 +367,13 @@ Bun.serve({
               } else {
                 if (!googleRes.body) throw new Error("No response body");
                 
-                const stream = googleRes.body.pipeThrough(createOpenAIStreamTransformer(openaiBody.model, requestId, false, sessionId));
+                const stream = googleRes.body.pipeThrough(createOpenAIStreamTransformer(
+                  openaiBody.model,
+                  requestId,
+                  false,
+                  sessionId,
+                  googleBody.request?.generationConfig?.maxOutputTokens
+                ));
                 const reader = stream.getReader();
                
                 let fullContent = "";
