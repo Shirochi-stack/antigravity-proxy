@@ -506,6 +506,18 @@ You are pair programming with a USER to solve their coding task. The task may re
 export function transformGoogleEventToOpenAI(googleData: any, model: string, requestId?: string, hasPriorToolCalls: boolean = false): any {
   const data = googleData.response || googleData;
   const requestIdActual = requestId || "chatcmpl-" + Math.random().toString(36).substring(7);
+  const promptFeedback = data.promptFeedback || data.prompt_feedback ||
+                         googleData.promptFeedback || googleData.prompt_feedback;
+  const promptBlockReason = promptFeedback?.blockReason ?? promptFeedback?.block_reason;
+  const promptBlockReasonText = promptBlockReason === undefined || promptBlockReason === null
+    ? ""
+    : String(promptBlockReason).trim();
+  const promptBlockReasonUpper = promptBlockReasonText.toUpperCase();
+  const promptBlockReasonCode = Number(promptBlockReason);
+  const hasPromptBlock = Boolean(promptBlockReasonText) &&
+                         promptBlockReasonCode !== 0 &&
+                         !promptBlockReasonUpper.includes("UNSPECIFIED");
+  const promptBlockMessage = promptFeedback?.blockReasonMessage ?? promptFeedback?.block_reason_message;
   
   const usage = data.usageMetadata ? {
     prompt_tokens: data.usageMetadata.promptTokenCount || 0,
@@ -514,6 +526,23 @@ export function transformGoogleEventToOpenAI(googleData: any, model: string, req
   } : undefined;
 
   if (!data.candidates || data.candidates.length === 0) {
+    if (hasPromptBlock) {
+      return {
+        id: requestIdActual,
+        object: "chat.completion.chunk",
+        created: Math.floor(Date.now() / 1000),
+        model: model,
+        choices: [{
+          index: 0,
+          delta: {},
+          finish_reason: "content_filter"
+        }],
+        usage: usage,
+        provider_finish_reason: null,
+        provider_block_reason: promptBlockReasonText,
+        provider_block_message: promptBlockMessage
+      };
+    }
     if (usage) {
       return {
         id: requestIdActual,
@@ -530,8 +559,13 @@ export function transformGoogleEventToOpenAI(googleData: any, model: string, req
   const candidate = data.candidates[0];
   const parts = candidate.content?.parts || [];
   const finishReason = candidate.finishReason;
+  const candidateSafetyRatings = candidate.safetyRatings || candidate.safety_ratings || [];
+  const hasBlockedCandidateSafetyRating = Array.isArray(candidateSafetyRatings) &&
+    candidateSafetyRatings.some((rating: any) =>
+      rating?.blocked === true || String(rating?.blocked).toLowerCase() === "true"
+    );
   
-  if (parts.length === 0 && !finishReason && !usage) return null;
+  if (parts.length === 0 && !finishReason && !usage && !hasPromptBlock && !hasBlockedCandidateSafetyRating) return null;
   
   const delta: any = {};
   const toolCalls: any[] = [];
@@ -592,7 +626,9 @@ export function transformGoogleEventToOpenAI(googleData: any, model: string, req
   }
   
   let openaiFinishReason: string | null = null;
-  if (finishReason) {
+  if (hasPromptBlock || hasBlockedCandidateSafetyRating) {
+    openaiFinishReason = "content_filter";
+  } else if (finishReason) {
     if (toolCalls.length > 0 || hasPriorToolCalls) {
       openaiFinishReason = "tool_calls";
     } else if (finishReason === "STOP") {
@@ -619,6 +655,11 @@ export function transformGoogleEventToOpenAI(googleData: any, model: string, req
       finish_reason: openaiFinishReason
     }],
     usage: usage,
+    provider_finish_reason: finishReason ?? null,
+    provider_block_reason: hasPromptBlock
+      ? promptBlockReasonText
+      : (hasBlockedCandidateSafetyRating ? "SAFETY_RATING_BLOCKED" : null),
+    provider_block_message: promptBlockMessage,
     _signature: extractedSignature,
     _thought: extractedThought
   };

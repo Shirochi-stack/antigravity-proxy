@@ -300,4 +300,95 @@ describe("Unit Tests: transformGoogleEventToOpenAI", () => {
     const result = transformGoogleEventToOpenAI(googleData, "model");
     expect(result).toBeNull();
   });
+
+  test("Prompt-level prohibited content maps to content_filter without candidates", () => {
+    const googleData = {
+      candidates: [],
+      promptFeedback: {
+        blockReason: "PROHIBITED_CONTENT",
+        blockReasonMessage: "The prompt contains prohibited content."
+      },
+      usageMetadata: {
+        promptTokenCount: 12,
+        candidatesTokenCount: 0,
+        totalTokenCount: 12
+      }
+    };
+
+    const result = transformGoogleEventToOpenAI(googleData, "gemini-3.7-flash-medium", "req-blocked");
+
+    expect(result.choices[0].delta).toEqual({});
+    expect(result.choices[0].finish_reason).toBe("content_filter");
+    expect(result.provider_finish_reason).toBeNull();
+    expect(result.provider_block_reason).toBe("PROHIBITED_CONTENT");
+    expect(result.provider_block_message).toBe("The prompt contains prohibited content.");
+    expect(result.usage.total_tokens).toBe(12);
+  });
+
+  test("Wrapped snake-case prompt block maps to content_filter", () => {
+    const googleData = {
+      response: {
+        candidates: [],
+        prompt_feedback: {
+          block_reason: "BLOCKLIST"
+        }
+      }
+    };
+
+    const result = transformGoogleEventToOpenAI(googleData, "gemini-3.7-flash-medium");
+
+    expect(result.choices[0].finish_reason).toBe("content_filter");
+    expect(result.provider_block_reason).toBe("BLOCKLIST");
+  });
+
+  test("Prompt block overrides a warning candidate with no finish reason", () => {
+    const googleData = {
+      candidates: [{
+        content: {
+          parts: [{ text: "The prompt could not be submitted." }]
+        }
+      }],
+      promptFeedback: {
+        blockReason: "SAFETY"
+      }
+    };
+
+    const result = transformGoogleEventToOpenAI(googleData, "gemini-3.7-flash-medium");
+
+    expect(result.choices[0].delta.content).toBe("The prompt could not be submitted.");
+    expect(result.choices[0].finish_reason).toBe("content_filter");
+    expect(result.provider_block_reason).toBe("SAFETY");
+  });
+
+  test("Explicitly blocked candidate safety rating maps to content_filter", () => {
+    const googleData = {
+      candidates: [{
+        content: {
+          parts: [{ text: "Blocked response." }]
+        },
+        safetyRatings: [{ category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", blocked: true }]
+      }]
+    };
+
+    const result = transformGoogleEventToOpenAI(googleData, "gemini-3.7-flash-medium");
+
+    expect(result.choices[0].finish_reason).toBe("content_filter");
+    expect(result.provider_block_reason).toBe("SAFETY_RATING_BLOCKED");
+  });
+
+  test("Unspecified prompt feedback is not treated as a block", () => {
+    const googleData = {
+      candidates: [{
+        content: { parts: [{ text: "Still generating" }] }
+      }],
+      promptFeedback: {
+        blockReason: "BLOCK_REASON_UNSPECIFIED"
+      }
+    };
+
+    const result = transformGoogleEventToOpenAI(googleData, "gemini-3.7-flash-medium");
+
+    expect(result.choices[0].finish_reason).toBeNull();
+    expect(result.provider_block_reason).toBeNull();
+  });
 });
