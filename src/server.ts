@@ -103,6 +103,7 @@ Bun.serve({
       const isClaudeModel = modelLower.includes("claude");
       const isGptModel = modelLower.includes("gpt");
       const isGemini37Flash = modelLower.includes("gemini-3.7-flash");
+      const isGemini31ProTier = /gemini-3\.1-pro-(low|high)$/.test(modelLower);
 
       let useCliPool: boolean;
       if (isClaudeModel) {
@@ -117,7 +118,7 @@ Bun.serve({
 
           const isExplicitAntigravity = modelLower.includes("antigravity-");
           const isExplicitSandboxModel = isAntigravityThinking || isExplicitAntigravity ||
-                                         isGemini37Flash || modelLower.includes("image");
+                                         isGemini37Flash || isGemini31ProTier || modelLower.includes("image");
 
           useCliPool = !isExplicitSandboxModel && (
               modelLower.includes("-preview") || 
@@ -139,7 +140,8 @@ Bun.serve({
       
       // GPT and Claude models are Sandbox-preferred. Explicit antigravity- models are also Sandbox-only.
       const isExplicitAntigravity = modelLower.includes("antigravity-");
-      const isSandboxOnlyModel = modelLower.includes("gpt") || isExplicitAntigravity || isGemini37Flash;
+      const isSandboxOnlyModel = modelLower.includes("gpt") || isExplicitAntigravity ||
+                                 isGemini37Flash || isGemini31ProTier;
       const isCliOnlyModel = false;
       const CLAUDE_REGIONS = ["us-central1", "us-east5", "europe-west1"];
       

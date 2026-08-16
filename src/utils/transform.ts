@@ -6,6 +6,7 @@ const TOOL_NAME_REMAP_CACHE = new Map<string, string>();
 
 const GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
 const GEMINI_37_FLASH_WIRE_MODEL = "gemini-3.7-flash-tiered";
+const GEMINI_31_PRO_HIGH_WIRE_MODEL = "gemini-pro-agent";
 export const GEMINI_37_FLASH_ALIASES = [
   "gemini-3.7-flash-low",
   "gemini-3.7-flash-medium",
@@ -128,6 +129,7 @@ export function transformToGoogleBody(
       "gemini-3.1-pro-low",
       "gemini-3.1-pro",
       "gemini-3.1-pro-preview",
+      GEMINI_31_PRO_HIGH_WIRE_MODEL,
       GEMINI_37_FLASH_MODEL,
       GEMINI_37_FLASH_WIRE_MODEL,
       "gemini-3-flash",
@@ -177,7 +179,9 @@ export function transformToGoogleBody(
            if (isGemini37Flash) {
                googleModel = GEMINI_37_FLASH_WIRE_MODEL;
            } else if (baseModel.includes("gemini-3.1-pro")) {
-               googleModel = `gemini-3.1-pro-${extractedTier || "high"}`;
+               googleModel = extractedTier === "low"
+                   ? "gemini-3.1-pro-low"
+                   : GEMINI_31_PRO_HIGH_WIRE_MODEL;
            } else if (baseModel.includes("gemini-3-pro")) {
                // Respect extracted tier for Gemini 3 Pro, fallback to high
                googleModel = `gemini-3-pro-${extractedTier || "high"}`;

@@ -78,6 +78,24 @@ describe("Unit Tests: transformToGoogleBody", () => {
     expect(result.request.generationConfig.thinkingConfig.thinkingBudget).toBeUndefined();
   });
 
+  test("Gemini 3.1 Pro tiers map to their working wire models", () => {
+    const aliases = [
+      ["gemini-3.1-pro-low", "gemini-3.1-pro-low"],
+      ["gemini-3.1-pro-high", "gemini-pro-agent"],
+      ["antigravity-gemini-3.1-pro-low", "gemini-3.1-pro-low"],
+      ["antigravity-gemini-3.1-pro-high", "gemini-pro-agent"]
+    ] as const;
+
+    for (const [model, expectedWireModel] of aliases) {
+      const result = transformToGoogleBody({
+        model,
+        messages: [{ role: "user", content: "Hi" }]
+      }, "p", false, "us-central1");
+
+      expect(result.model).toBe(expectedWireModel);
+    }
+  });
+
   test("Multi-turn conversation", () => {
     const openaiBody = {
       model: "gemini-1.5-pro",
