@@ -125,6 +125,11 @@ export function transformToGoogleBody(
         resolvedModel === GEMINI_35_FLASH_HIGH_WIRE_MODEL
           ? GEMINI_35_FLASH_HIGH_WIRE_MODEL
           : undefined;
+  const gemini35FlashThinkingLevel = gemini35FlashWireModel === GEMINI_35_FLASH_MEDIUM_WIRE_MODEL
+      ? "medium"
+      : gemini35FlashWireModel === GEMINI_35_FLASH_HIGH_WIRE_MODEL
+          ? "high"
+          : undefined;
 
   // Force Claude model IDs to strip tier for the backend
         if (googleModel.includes("claude")) {
@@ -405,11 +410,23 @@ You are pair programming with a USER to solve their coding task. The task may re
     sessionId: sessionId || crypto.randomUUID()
   };
 
-  if ((isThinkingModel || googleModel.includes("gemini-3")) && !gemini35FlashWireModel) {
-    if (isGemini37Flash) {
+  const isGemini31ProHighWireModel = googleModel === GEMINI_31_PRO_HIGH_WIRE_MODEL;
+
+  if (isThinkingModel || googleModel.includes("gemini-3") || isGemini31ProHighWireModel) {
+    if (gemini35FlashThinkingLevel) {
+      googleRequest.generationConfig.thinkingConfig = {
+        includeThoughts: true,
+        thinkingLevel: gemini35FlashThinkingLevel
+      };
+    } else if (isGemini37Flash) {
       googleRequest.generationConfig.thinkingConfig = {
         includeThoughts: true,
         thinkingLevel: extractedTier || "medium"
+      };
+    } else if (isGemini31ProHighWireModel) {
+      googleRequest.generationConfig.thinkingConfig = {
+        includeThoughts: true,
+        thinkingLevel: "high"
       };
     } else {
       googleRequest.generationConfig.thinkingConfig = {

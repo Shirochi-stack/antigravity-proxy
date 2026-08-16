@@ -96,15 +96,37 @@ describe("Unit Tests: transformToGoogleBody", () => {
     }
   });
 
-  test("Gemini 3.5 Flash aliases map to their tier-specific wire models", () => {
+  test("Gemini 3.1 Pro high requests high-level thought summaries", () => {
     const aliases = [
-      ["gemini-3.5-flash-medium", "gemini-3.5-flash-low"],
-      ["gemini-3.5-flash-high", "gemini-3-flash-agent"],
-      ["antigravity-gemini-3.5-flash-medium", "gemini-3.5-flash-low"],
-      ["antigravity-gemini-3.5-flash-high", "gemini-3-flash-agent"]
+      "gemini-3.1-pro",
+      "gemini-3.1-pro-high",
+      "antigravity-gemini-3.1-pro-high",
+      "gemini-pro-agent"
+    ];
+
+    for (const model of aliases) {
+      const result = transformToGoogleBody({
+        model,
+        messages: [{ role: "user", content: "Hi" }]
+      }, "p", false, "us-central1");
+
+      expect(result.model).toBe("gemini-pro-agent");
+      expect(result.request.generationConfig.thinkingConfig).toEqual({
+        includeThoughts: true,
+        thinkingLevel: "high"
+      });
+    }
+  });
+
+  test("Gemini 3.5 Flash aliases map to their wire models and request thought summaries", () => {
+    const aliases = [
+      ["gemini-3.5-flash-medium", "gemini-3.5-flash-low", "medium"],
+      ["gemini-3.5-flash-high", "gemini-3-flash-agent", "high"],
+      ["antigravity-gemini-3.5-flash-medium", "gemini-3.5-flash-low", "medium"],
+      ["antigravity-gemini-3.5-flash-high", "gemini-3-flash-agent", "high"]
     ] as const;
 
-    for (const [model, expectedWireModel] of aliases) {
+    for (const [model, expectedWireModel, expectedThinkingLevel] of aliases) {
       for (const isCli of [false, true]) {
         const result = transformToGoogleBody({
           model,
@@ -112,7 +134,10 @@ describe("Unit Tests: transformToGoogleBody", () => {
         }, "p", isCli, "us-central1");
 
         expect(result.model).toBe(expectedWireModel);
-        expect(result.request.generationConfig.thinkingConfig).toBeUndefined();
+        expect(result.request.generationConfig.thinkingConfig).toEqual({
+          includeThoughts: true,
+          thinkingLevel: expectedThinkingLevel
+        });
       }
     }
   });
