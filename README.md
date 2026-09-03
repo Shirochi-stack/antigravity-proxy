@@ -2,7 +2,7 @@
 
 ![Antigravity Proxy Dashboard](screenshots/screenshot.png)
 
-Antigravity Proxy is a high-performance gateway that exposes Google's internal Gemini and Claude APIs through an **OpenAI-compatible interface**. It enables seamless integration between advanced models (like Claude 4.6 Opus, Gemini 3.7 Flash, and GPT-equivalent models) and CLI agents (such as **OpenCode** or **Claude Code**), as well as any application supporting the OpenAI API standard.
+Antigravity Proxy is a high-performance gateway that exposes Google's internal Gemini and Claude APIs through an **OpenAI-compatible interface**. It enables seamless integration between advanced models (like Claude 4.6 Opus, Gemini 3.8 Flash, and GPT-equivalent models) and CLI agents (such as **OpenCode** or **Claude Code**), as well as any application supporting the OpenAI API standard.
 
 This project is strongly inspired by [opencode-antigravity-auth](https://github.com/NoeFabris/opencode-antigravity-auth).
 
@@ -23,12 +23,12 @@ This project is strongly inspired by [opencode-antigravity-auth](https://github.
 ### Bunx (Recommended)
 You can run the proxy instantly using `bunx`:
 ```bash
-bunx antigravity-proxy@0.7.7
+bunx antigravity-proxy@0.7.8
 ```
 
 ### Docker Hub
 ```bash
-docker run -d -p 3000:3000 -e BASE_URL=http://localhost:3000 --name antigravity-proxy frieserpaldi/antigravity-proxy:0.7.7
+docker run -d -p 3000:3000 -e BASE_URL=http://localhost:3000 --name antigravity-proxy frieserpaldi/antigravity-proxy:0.7.8
 ```
 
 ### Local Execution (Bun)
@@ -64,6 +64,18 @@ Add the following provider to your `~/.config/opencode/opencode.json` under the 
             "baseURL": "http://localhost:3000/v1"
         },
         "models": {
+            "gemini-3.8-flash-low": {
+                "name": "Gemini 3.8 Flash Low (Antigravity)",
+                "limit": { "context": 1048576, "output": 65536 }
+            },
+            "gemini-3.8-flash-medium": {
+                "name": "Gemini 3.8 Flash Medium (Antigravity)",
+                "limit": { "context": 1048576, "output": 65536 }
+            },
+            "gemini-3.8-flash-high": {
+                "name": "Gemini 3.8 Flash High (Antigravity)",
+                "limit": { "context": 1048576, "output": 65536 }
+            },
             "gemini-3.7-flash-low": {
                 "name": "Gemini 3.7 Flash Low (Antigravity)",
                 "limit": { "context": 1048576, "output": 65536 }
