@@ -4,6 +4,8 @@ import { getProxyConfig } from "../config/manager";
 
 const TOOL_NAME_REMAP_CACHE = new Map<string, string>();
 
+const GEMINI_38_FLASH_MODEL = "gemini-3.8-flash";
+const GEMINI_38_FLASH_WIRE_MODEL = "gemini-3.8-flash-tiered";
 const GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
 const GEMINI_37_FLASH_WIRE_MODEL = "gemini-3.7-flash-tiered";
 const GEMINI_31_PRO_HIGH_WIRE_MODEL = "gemini-pro-agent";
@@ -25,6 +27,11 @@ export const GEMINI_37_FLASH_ALIASES = [
   "gemini-3.7-flash-low",
   "gemini-3.7-flash-medium",
   "gemini-3.7-flash-high"
+] as const;
+export const GEMINI_38_FLASH_ALIASES = [
+  "gemini-3.8-flash-low",
+  "gemini-3.8-flash-medium",
+  "gemini-3.8-flash-high"
 ] as const;
 
 function sanitizeFunctionName(name: string): string {
@@ -124,6 +131,8 @@ export function transformToGoogleBody(
 
   const isGemini37Flash = baseModel === GEMINI_37_FLASH_MODEL ||
                           baseModel === GEMINI_37_FLASH_WIRE_MODEL;
+  const isGemini38Flash = baseModel === GEMINI_38_FLASH_MODEL ||
+                          baseModel === GEMINI_38_FLASH_WIRE_MODEL;
   const gemini35FlashThinkingLevel = resolvedModel === GEMINI_35_FLASH_EXTRA_LOW_ALIAS ||
                                     resolvedModel === GEMINI_35_FLASH_LOW_ALIAS
       ? "low"
@@ -161,6 +170,8 @@ export function transformToGoogleBody(
       ...GEMINI_35_FLASH_ALIASES,
       GEMINI_35_FLASH_LOW_WIRE_MODEL,
       GEMINI_35_FLASH_HIGH_WIRE_MODEL,
+      GEMINI_38_FLASH_MODEL,
+      GEMINI_38_FLASH_WIRE_MODEL,
       GEMINI_37_FLASH_MODEL,
       GEMINI_37_FLASH_WIRE_MODEL,
       "gemini-3-flash",
@@ -181,6 +192,8 @@ export function transformToGoogleBody(
       if (!googleModel.includes("claude")) {
           if (gemini35FlashWireModel) {
               googleModel = gemini35FlashWireModel;
+          } else if (isGemini38Flash) {
+              googleModel = GEMINI_38_FLASH_WIRE_MODEL;
           } else if (isGemini37Flash) {
               googleModel = GEMINI_37_FLASH_WIRE_MODEL;
           // Standardize older Gemini 3 CLI models to use -preview suffix
@@ -211,6 +224,8 @@ export function transformToGoogleBody(
        if (isNative) {
            if (gemini35FlashWireModel) {
                googleModel = gemini35FlashWireModel;
+           } else if (isGemini38Flash) {
+               googleModel = GEMINI_38_FLASH_WIRE_MODEL;
            } else if (isGemini37Flash) {
                googleModel = GEMINI_37_FLASH_WIRE_MODEL;
            } else if (baseModel.includes("gemini-3.1-pro")) {
@@ -425,6 +440,11 @@ You are pair programming with a USER to solve their coding task. The task may re
       googleRequest.generationConfig.thinkingConfig = {
         includeThoughts: true,
         thinkingLevel: gemini35FlashThinkingLevel
+      };
+    } else if (isGemini38Flash) {
+      googleRequest.generationConfig.thinkingConfig = {
+        includeThoughts: true,
+        thinkingLevel: extractedTier || "medium"
       };
     } else if (isGemini37Flash) {
       googleRequest.generationConfig.thinkingConfig = {

@@ -49,6 +49,36 @@ describe("Unit Tests: transformToGoogleBody", () => {
   });
 
   for (const tier of ["low", "medium", "high"]) {
+    test(`Gemini 3.8 Flash ${tier} alias mapping`, () => {
+      const openaiBody = {
+        model: `gemini-3.8-flash-${tier}`,
+        messages: [{ role: "user", content: "Hi" }]
+      };
+
+      for (const isCli of [false, true]) {
+        const result = transformToGoogleBody(openaiBody, "p", isCli, "us-central1");
+        const thinkingConfig = result.request.generationConfig.thinkingConfig;
+
+        expect(result.model).toBe("gemini-3.8-flash-tiered");
+        expect(thinkingConfig.includeThoughts).toBe(true);
+        expect(thinkingConfig.thinkingLevel).toBe(tier);
+        expect(thinkingConfig.thinkingBudget).toBeUndefined();
+      }
+    });
+  }
+
+  test("Gemini 3.8 Flash defaults to medium thinking", () => {
+    const result = transformToGoogleBody({
+      model: "gemini-3.8-flash",
+      messages: [{ role: "user", content: "Hi" }]
+    }, "p", false, "us-central1");
+
+    expect(result.model).toBe("gemini-3.8-flash-tiered");
+    expect(result.request.generationConfig.thinkingConfig.thinkingLevel).toBe("medium");
+    expect(result.request.generationConfig.thinkingConfig.thinkingBudget).toBeUndefined();
+  });
+
+  for (const tier of ["low", "medium", "high"]) {
     test(`Gemini 3.7 Flash ${tier} alias mapping`, () => {
       const openaiBody = {
         model: `gemini-3.7-flash-${tier}`,
