@@ -153,14 +153,11 @@ export function transformToGoogleBody(
             googleModel = baseModel;
             if (googleModel === "claude-opus-5-5") googleModel = "claude-opus-5-5-thinking";
             if (googleModel === "claude-sonnet-5-5") googleModel = "claude-sonnet-5-5-thinking";
-            if (googleModel === "claude-sonnet-4-5") googleModel = "claude-sonnet-4-5-thinking";
         }
 
     const nativelySupported = [
       "claude-sonnet-5-5",
       "claude-sonnet-5-5-thinking",
-      "claude-sonnet-4-5", 
-      "claude-sonnet-4-5-thinking", 
       "claude-opus-5-5-thinking",
       "gemini-3.1-pro-high",
       "gemini-3.1-pro-low",
@@ -214,7 +211,6 @@ export function transformToGoogleBody(
        } else {
            googleModel = baseModel;
            if (googleModel === "claude-sonnet-5-5") googleModel = "claude-sonnet-5-5-thinking";
-           if (googleModel === "claude-sonnet-4-5") googleModel = "claude-sonnet-4-5-thinking";
        }
    } else {
        if (googleModel.endsWith("-preview")) {
@@ -246,9 +242,6 @@ export function transformToGoogleBody(
              }
            if (googleModel === "claude-sonnet-5-5" || googleModel === "antigravity-claude-sonnet-5-5") {
                googleModel = "claude-sonnet-5-5-thinking";
-           }
-           if (googleModel === "claude-sonnet-4-5" || googleModel === "antigravity-claude-sonnet-4-5") {
-               googleModel = "claude-sonnet-4-5-thinking";
            }
        }
    }

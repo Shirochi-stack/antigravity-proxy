@@ -49,7 +49,7 @@ To use **Claude Code** with Antigravity Proxy, point the API base URL to your lo
 export CLAUDE_CODE_API_BASE="http://localhost:3000/v1"
 
 # Run Claude specifying an Antigravity model
-claude --model antigravity-claude-sonnet-4-5
+claude --model antigravity-claude-sonnet-5-5
 ```
 
 ### OpenCode Configuration
@@ -130,22 +130,6 @@ Add the following provider to your `~/.config/opencode/opencode.json` under the 
             },
             "antigravity-claude-sonnet-5-5-thinking-high": {
                 "name": "Claude Sonnet 5.5 Think High (Antigravity)",
-                "limit": { "context": 200000, "output": 64000 }
-            },
-            "antigravity-claude-sonnet-4-5": {
-                "name": "Claude Sonnet 4.5 (Antigravity)",
-                "limit": { "context": 200000, "output": 64000 }
-            },
-            "antigravity-claude-sonnet-4-5-thinking-low": {
-                "name": "Claude Sonnet 4.5 Think Low (Antigravity)",
-                "limit": { "context": 200000, "output": 64000 }
-            },
-            "antigravity-claude-sonnet-4-5-thinking-medium": {
-                "name": "Claude Sonnet 4.5 Think Medium (Antigravity)",
-                "limit": { "context": 200000, "output": 64000 }
-            },
-            "antigravity-claude-sonnet-4-5-thinking-high": {
-                "name": "Claude Sonnet 4.5 Think High (Antigravity)",
                 "limit": { "context": 200000, "output": 64000 }
             },
             "antigravity-claude-opus-5-5-thinking-low": {
