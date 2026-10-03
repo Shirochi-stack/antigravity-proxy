@@ -36,7 +36,7 @@ console.log(`Health: ${account.healthScore}`);
 
 // 2. Prepare Request
 const openaiBody = {
-    model: "claude-opus-5-5-thinking",
+    model: "claude-opus-5-5-high",
     messages: [
         { role: "user", content: "Hi" }
     ],

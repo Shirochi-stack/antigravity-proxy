@@ -23,12 +23,12 @@ This project is strongly inspired by [opencode-antigravity-auth](https://github.
 ### Bunx (Recommended)
 You can run the proxy instantly using `bunx`:
 ```bash
-bunx antigravity-proxy@0.7.10
+bunx antigravity-proxy@0.7.11
 ```
 
 ### Docker Hub
 ```bash
-docker run -d -p 3000:3000 -e BASE_URL=http://localhost:3000 --name antigravity-proxy frieserpaldi/antigravity-proxy:0.7.10
+docker run -d -p 3000:3000 -e BASE_URL=http://localhost:3000 --name antigravity-proxy frieserpaldi/antigravity-proxy:0.7.11
 ```
 
 ### Local Execution (Bun)
@@ -49,7 +49,7 @@ To use **Claude Code** with Antigravity Proxy, point the API base URL to your lo
 export CLAUDE_CODE_API_BASE="http://localhost:3000/v1"
 
 # Run Claude specifying an Antigravity model
-claude --model antigravity-claude-sonnet-5-5
+claude --model antigravity-claude-sonnet-5-5-medium
 ```
 
 ### OpenCode Configuration
@@ -116,33 +116,29 @@ Add the following provider to your `~/.config/opencode/opencode.json` under the 
                 "name": "Gemini 3 Flash (Antigravity)",
                 "limit": { "context": 1048576, "output": 65536 }
             },
-            "antigravity-claude-sonnet-5-5": {
-                "name": "Claude Sonnet 5.5 (Antigravity)",
-                "limit": { "context": 200000, "output": 64000 }
+            "antigravity-claude-sonnet-5-5-low": {
+                "name": "Claude Sonnet 5.5 Low (Antigravity)",
+                "limit": { "context": 1000000, "output": 128000 }
             },
-            "antigravity-claude-sonnet-5-5-thinking-low": {
-                "name": "Claude Sonnet 5.5 Think Low (Antigravity)",
-                "limit": { "context": 200000, "output": 64000 }
+            "antigravity-claude-sonnet-5-5-medium": {
+                "name": "Claude Sonnet 5.5 Medium (Antigravity)",
+                "limit": { "context": 1000000, "output": 128000 }
             },
-            "antigravity-claude-sonnet-5-5-thinking-medium": {
-                "name": "Claude Sonnet 5.5 Think Medium (Antigravity)",
-                "limit": { "context": 200000, "output": 64000 }
+            "antigravity-claude-sonnet-5-5-high": {
+                "name": "Claude Sonnet 5.5 High (Antigravity)",
+                "limit": { "context": 1000000, "output": 128000 }
             },
-            "antigravity-claude-sonnet-5-5-thinking-high": {
-                "name": "Claude Sonnet 5.5 Think High (Antigravity)",
-                "limit": { "context": 200000, "output": 64000 }
+            "antigravity-claude-opus-5-5-low": {
+                "name": "Claude Opus 5.5 Low (Antigravity)",
+                "limit": { "context": 1000000, "output": 128000 }
             },
-            "antigravity-claude-opus-5-5-thinking-low": {
-                "name": "Claude Opus 5.5 Think Low (Antigravity)",
-                "limit": { "context": 1000000, "output": 64000 }
+            "antigravity-claude-opus-5-5-medium": {
+                "name": "Claude Opus 5.5 Medium (Antigravity)",
+                "limit": { "context": 1000000, "output": 128000 }
             },
-            "antigravity-claude-opus-5-5-thinking-medium": {
-                "name": "Claude Opus 5.5 Think Medium (Antigravity)",
-                "limit": { "context": 1000000, "output": 64000 }
-            },
-            "antigravity-claude-opus-5-5-thinking-high": {
-                "name": "Claude Opus 5.5 Think High (Antigravity)",
-                "limit": { "context": 1000000, "output": 64000 }
+            "antigravity-claude-opus-5-5-high": {
+                "name": "Claude Opus 5.5 High (Antigravity)",
+                "limit": { "context": 1000000, "output": 128000 }
             },
             "gemini-2.5-flash": {
                 "name": "Gemini 2.5 Flash (CLI)",

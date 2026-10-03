@@ -3,24 +3,45 @@ import { type AntigravityAccount } from "../auth/types";
 import { getAccounts, saveAccounts } from "../auth/manager";
 import { refreshAccessToken } from "../auth/oauth";
 
+// The daily host lists the models chat requests are routed to (e.g. Claude 5.5);
+// prod still lists retired ones, so it is only a fallback.
+const MODEL_CATALOG_HOSTS = [
+  "https://daily-cloudcode-pa.googleapis.com",
+  "https://cloudcode-pa.googleapis.com"
+];
+
+async function fetchAvailableModels(account: AntigravityAccount): Promise<Response> {
+  let res: Response | undefined;
+  for (const host of MODEL_CATALOG_HOSTS) {
+    try {
+      res = await fetch(`${host}/v1internal:fetchAvailableModels`, {
+        method: "POST",
+        headers: {
+          ...getImpersonationHeaders(account.accessToken!, account.fingerprint),
+          "User-Agent": "antigravity",
+        },
+        body: JSON.stringify({
+          project: account.projectId
+        })
+      });
+    } catch (e) {
+      if (host === MODEL_CATALOG_HOSTS[MODEL_CATALOG_HOSTS.length - 1]) throw e;
+      continue;
+    }
+    if (res.ok || res.status === 401) return res;
+  }
+  return res!;
+}
+
 export async function fetchQuota(account: AntigravityAccount, retry = true): Promise<AntigravityAccount['quota'] | null> {
   if (!account.projectId || !account.accessToken) return null;
-  
+
   if (!account.fingerprint || !account.fingerprint.clientMetadata?.sqmId) {
     account.fingerprint = generateFingerprint(account.email);
   }
 
   try {
-    const res = await fetch(`https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels`, {
-      method: "POST",
-      headers: {
-        ...getImpersonationHeaders(account.accessToken, account.fingerprint),
-        "User-Agent": "antigravity",
-      },
-      body: JSON.stringify({
-        project: account.projectId
-      })
-    });
+    const res = await fetchAvailableModels(account);
 
     if (res.status === 401 && retry) {
       console.log(`Quota fetch 401 for ${account.email}, refreshing token...`);

@@ -222,31 +222,58 @@ describe("Unit Tests: transformToGoogleBody", () => {
     expect(result.request.tools[0].functionDeclarations[0].parameters.properties.location).toBeDefined();
   });
 
-  test("Claude Opus 5.5 Thinking mapping and budget", () => {
-    const openaiBody = {
-      model: "antigravity-claude-opus-5-5-thinking-high",
-      messages: [{ role: "user", content: "Hi" }]
-    };
-
-    const result = transformToGoogleBody(openaiBody, "p", false, "us-central1");
-    expect(result.model).toBe("claude-opus-5-5-thinking");
-    expect(result.request.generationConfig.thinkingConfig.includeThoughts).toBe(true);
-    expect(result.request.generationConfig.thinkingConfig.thinkingBudget).toBe(32768);
+  test("Claude 5.5 tiered IDs pass through with matching thinking level", () => {
+    for (const model of ["claude-sonnet-5-5-low", "claude-opus-5-5-medium", "antigravity-claude-opus-5-5-high"]) {
+      for (const isCli of [false, true]) {
+        const result = transformToGoogleBody({ model, messages: [{ role: "user", content: "Hi" }] }, "p", isCli, "us-central1");
+        const wire = model.replace(/^antigravity-/, "");
+        expect(result.model).toBe(wire);
+        expect(result.request.generationConfig.thinkingConfig).toEqual({
+          includeThoughts: true,
+          thinkingLevel: wire.split("-").pop()
+        });
+        expect(result.request.generationConfig.maxOutputTokens).toBe(64000);
+      }
+    }
   });
 
-  test("Claude Opus 5.5 Thinking Low budget", () => {
-    const openaiBody = {
-      model: "antigravity-claude-opus-5-5-thinking-low",
-      messages: [{ role: "user", content: "Hi" }]
+  test("Claude 5.5 thinking-tier and untiered aliases", () => {
+    const cases: Record<string, string> = {
+      "antigravity-claude-opus-5-5-thinking-high": "claude-opus-5-5-high",
+      "antigravity-claude-sonnet-5-5-thinking-low": "claude-sonnet-5-5-low",
+      "claude-sonnet-5-5": "claude-sonnet-5-5-medium",
+      "antigravity/claude-opus-5-5-thinking": "claude-opus-5-5-medium"
     };
+    for (const [model, wire] of Object.entries(cases)) {
+      const result = transformToGoogleBody({ model, messages: [{ role: "user", content: "Hi" }] }, "p", false, "us-central1");
+      expect(result.model).toBe(wire);
+    }
+  });
 
-    const result = transformToGoogleBody(openaiBody, "p", false, "us-central1");
-    expect(result.request.generationConfig.thinkingConfig.thinkingBudget).toBe(8192);
+  test("Retired Claude 4.6 IDs map to Claude 5.5", () => {
+    const cases: Record<string, string> = {
+      "antigravity-claude-sonnet-4-6": "claude-sonnet-5-5-medium",
+      "claude-opus-4-6-thinking": "claude-opus-5-5-medium",
+      "antigravity-claude-opus-4-6-thinking-low": "claude-opus-5-5-low"
+    };
+    for (const [model, wire] of Object.entries(cases)) {
+      const result = transformToGoogleBody({ model, messages: [{ role: "user", content: "Hi" }] }, "p", false, "us-central1");
+      expect(result.model).toBe(wire);
+    }
+  });
+
+  test("Claude 5.5 output tokens are capped at 128k", () => {
+    const result = transformToGoogleBody({
+      model: "claude-sonnet-5-5-high",
+      max_tokens: 200000,
+      messages: [{ role: "user", content: "Hi" }]
+    }, "p", false, "us-central1");
+    expect(result.request.generationConfig.maxOutputTokens).toBe(128000);
   });
 
   test("Claude tool call transformation with ID", () => {
     const openaiBody = {
-      model: "antigravity-claude-opus-5-5-thinking-high",
+      model: "antigravity-claude-opus-5-5-high",
       messages: [
         {
           role: "assistant",
@@ -270,7 +297,7 @@ describe("Unit Tests: transformToGoogleBody", () => {
 
   test("Claude tool response transformation with ID", () => {
     const openaiBody = {
-      model: "antigravity-claude-opus-5-5-thinking-high",
+      model: "antigravity-claude-opus-5-5-high",
       messages: [
         {
           role: "tool",

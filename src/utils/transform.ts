@@ -33,6 +33,21 @@ export const GEMINI_38_FLASH_ALIASES = [
   "gemini-3.8-flash-medium",
   "gemini-3.8-flash-high"
 ] as const;
+// Claude 5.5 wire IDs carry the thinking tier (daily-cloudcode-pa catalog).
+export const CLAUDE_55_MODELS = [
+  "claude-sonnet-5-5-low",
+  "claude-sonnet-5-5-medium",
+  "claude-sonnet-5-5-high",
+  "claude-opus-5-5-low",
+  "claude-opus-5-5-medium",
+  "claude-opus-5-5-high"
+] as const;
+
+// Maps Claude 5.5 IDs (with or without -thinking / tier) and the retired 4.6 IDs to a 5.5 wire ID.
+function resolveClaude55WireModel(cleanId: string): string | undefined {
+  const match = cleanId.match(/^(claude-(?:sonnet|opus))-(?:5-5|4-6)(?:-thinking)?(?:-(low|medium|high))?$/i);
+  return match ? `${match[1]}-5-5-${match[2] || "medium"}` : undefined;
+}
 
 function sanitizeFunctionName(name: string): string {
   if (/^[a-zA-Z_]/.test(name) && /^[a-zA-Z0-9_]+$/.test(name)) {
@@ -69,9 +84,6 @@ const CLAUDE_MODEL_REGISTRY = [
     "claude-3-5-sonnet-20240620",
     "claude-3-5-haiku-20241022",
     "claude-3-opus-20240229",
-    "claude-opus-5-5-thinking",
-    "claude-sonnet-5-5",
-    "claude-sonnet-5-5-thinking",
     "claude-3-sonnet-20240229",
     "claude-3-haiku-20240307"
 ];
@@ -82,6 +94,9 @@ function resolveModelId(modelId: string): string {
     cleanId = cleanId.replace(/^gemini-claude-/i, "claude-");
 
     if (cleanId.includes("claude")) {
+        const claude55WireModel = resolveClaude55WireModel(cleanId);
+        if (claude55WireModel) return claude55WireModel;
+
         const exactMatch = CLAUDE_MODEL_REGISTRY.find(m => m === cleanId);
         if (exactMatch) return exactMatch;
 
@@ -148,17 +163,16 @@ export function transformToGoogleBody(
           ? GEMINI_35_FLASH_LOW_WIRE_MODEL
           : undefined;
 
-  // Force Claude model IDs to strip tier for the backend
+  const claude55WireModel = (CLAUDE_55_MODELS as readonly string[]).includes(resolvedModel) ? resolvedModel : undefined;
+  const claude55ThinkingLevel = claude55WireModel?.split("-").pop();
+
+  // Force Claude model IDs to strip tier for the backend (Claude 5.5 keeps its tier)
         if (googleModel.includes("claude")) {
-            googleModel = baseModel;
-            if (googleModel === "claude-opus-5-5") googleModel = "claude-opus-5-5-thinking";
-            if (googleModel === "claude-sonnet-5-5") googleModel = "claude-sonnet-5-5-thinking";
+            googleModel = claude55WireModel || baseModel;
         }
 
     const nativelySupported = [
-      "claude-sonnet-5-5",
-      "claude-sonnet-5-5-thinking",
-      "claude-opus-5-5-thinking",
+      ...CLAUDE_55_MODELS,
       "gemini-3.1-pro-high",
       "gemini-3.1-pro-low",
       "gemini-3.1-pro",
@@ -209,8 +223,7 @@ export function transformToGoogleBody(
                googleModel = baseModel;
           }
        } else {
-           googleModel = baseModel;
-           if (googleModel === "claude-sonnet-5-5") googleModel = "claude-sonnet-5-5-thinking";
+           googleModel = claude55WireModel || baseModel;
        }
    } else {
        if (googleModel.endsWith("-preview")) {
@@ -234,14 +247,7 @@ export function transformToGoogleBody(
            } else if (baseModel.includes("gemini-3-flash")) {
                googleModel = "gemini-3-flash";
            } else {
-               googleModel = baseModel;
-           }
-
-             if (googleModel === "claude-opus-5-5" || googleModel === "antigravity-claude-opus-5-5") {
-                 googleModel = "claude-opus-5-5-thinking";
-             }
-           if (googleModel === "claude-sonnet-5-5" || googleModel === "antigravity-claude-sonnet-5-5") {
-               googleModel = "claude-sonnet-5-5-thinking";
+               googleModel = claude55WireModel || baseModel;
            }
        }
    }
@@ -360,7 +366,7 @@ export function transformToGoogleBody(
     };
   });
 
-  const isThinkingModel = rawModel.includes("-thinking");
+  const isThinkingModel = rawModel.includes("-thinking") || !!claude55WireModel;
   const hasExplicitBudget = openaiBody.thinking_budget !== undefined || 
                            openaiBody.thinking?.budget_tokens !== undefined ||
                            openaiBody.providerOptions?.thinkingBudget !== undefined;
@@ -412,7 +418,9 @@ You are pair programming with a USER to solve their coding task. The task may re
     systemInstruction,
     generationConfig: {
       temperature: openaiBody.temperature ?? 0.7,
-      maxOutputTokens: (isThinkingModel || hasExplicitBudget) ? Math.max(openaiBody.max_tokens || 0, 64000) : (openaiBody.max_tokens ?? 4096),
+      maxOutputTokens: claude55WireModel
+        ? Math.min(Math.max(openaiBody.max_tokens || 0, 64000), 128000)
+        : (isThinkingModel || hasExplicitBudget) ? Math.max(openaiBody.max_tokens || 0, 64000) : (openaiBody.max_tokens ?? 4096),
       topP: openaiBody.top_p ?? 0.95,
       stopSequences: Array.isArray(openaiBody.stop) ? openaiBody.stop : (openaiBody.stop ? [openaiBody.stop] : undefined),
       candidateCount: 1
@@ -433,6 +441,11 @@ You are pair programming with a USER to solve their coding task. The task may re
       googleRequest.generationConfig.thinkingConfig = {
         includeThoughts: true,
         thinkingLevel: gemini35FlashThinkingLevel
+      };
+    } else if (claude55ThinkingLevel) {
+      googleRequest.generationConfig.thinkingConfig = {
+        includeThoughts: true,
+        thinkingLevel: claude55ThinkingLevel
       };
     } else if (isGemini38Flash) {
       googleRequest.generationConfig.thinkingConfig = {

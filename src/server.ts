@@ -204,7 +204,10 @@ Bun.serve({
                 break;
             }
 
-            const SANDBOX_ENDPOINTS = Array.isArray(config.endpoints.sandbox) ? config.endpoints.sandbox : [config.endpoints.sandbox];
+            const ALL_SANDBOX_ENDPOINTS = Array.isArray(config.endpoints.sandbox) ? config.endpoints.sandbox : [config.endpoints.sandbox];
+            // Prod cloudcode-pa only serves retired Claude models; a 404 there would flag the account as unsupported.
+            const CLAUDE_SANDBOX_ENDPOINTS = ALL_SANDBOX_ENDPOINTS.filter(u => !u.startsWith("https://cloudcode-pa.googleapis.com/"));
+            const SANDBOX_ENDPOINTS = isClaudeModel && CLAUDE_SANDBOX_ENDPOINTS.length > 0 ? CLAUDE_SANDBOX_ENDPOINTS : ALL_SANDBOX_ENDPOINTS;
             const CLI_ENDPOINTS = Array.isArray(config.endpoints.cli) ? config.endpoints.cli : [config.endpoints.cli];
             
             let GOOGLE_URL: string;
