@@ -222,21 +222,21 @@ describe("Unit Tests: transformToGoogleBody", () => {
     expect(result.request.tools[0].functionDeclarations[0].parameters.properties.location).toBeDefined();
   });
 
-  test("Claude Opus 4.6 Thinking mapping and budget", () => {
+  test("Claude Opus 5.5 Thinking mapping and budget", () => {
     const openaiBody = {
-      model: "antigravity-claude-opus-4-6-thinking-high",
+      model: "antigravity-claude-opus-5-5-thinking-high",
       messages: [{ role: "user", content: "Hi" }]
     };
 
     const result = transformToGoogleBody(openaiBody, "p", false, "us-central1");
-    expect(result.model).toBe("claude-opus-4-6-thinking");
+    expect(result.model).toBe("claude-opus-5-5-thinking");
     expect(result.request.generationConfig.thinkingConfig.includeThoughts).toBe(true);
     expect(result.request.generationConfig.thinkingConfig.thinkingBudget).toBe(32768);
   });
 
-  test("Claude Opus 4.6 Thinking Low budget", () => {
+  test("Claude Opus 5.5 Thinking Low budget", () => {
     const openaiBody = {
-      model: "antigravity-claude-opus-4-6-thinking-low",
+      model: "antigravity-claude-opus-5-5-thinking-low",
       messages: [{ role: "user", content: "Hi" }]
     };
 
@@ -246,7 +246,7 @@ describe("Unit Tests: transformToGoogleBody", () => {
 
   test("Claude tool call transformation with ID", () => {
     const openaiBody = {
-      model: "antigravity-claude-opus-4-6-thinking-high",
+      model: "antigravity-claude-opus-5-5-thinking-high",
       messages: [
         {
           role: "assistant",
@@ -270,7 +270,7 @@ describe("Unit Tests: transformToGoogleBody", () => {
 
   test("Claude tool response transformation with ID", () => {
     const openaiBody = {
-      model: "antigravity-claude-opus-4-6-thinking-high",
+      model: "antigravity-claude-opus-5-5-thinking-high",
       messages: [
         {
           role: "tool",

@@ -2,7 +2,7 @@
 
 ![Antigravity Proxy Dashboard](screenshots/screenshot.png)
 
-Antigravity Proxy is a high-performance gateway that exposes Google's internal Gemini and Claude APIs through an **OpenAI-compatible interface**. It enables seamless integration between advanced models (like Claude 4.6 Opus, Gemini 3.8 Flash, and GPT-equivalent models) and CLI agents (such as **OpenCode** or **Claude Code**), as well as any application supporting the OpenAI API standard.
+Antigravity Proxy is a high-performance gateway that exposes Google's internal Gemini and Claude APIs through an **OpenAI-compatible interface**. It enables seamless integration between advanced models (like Claude Opus 5.5, Gemini 3.8 Flash, and GPT-equivalent models) and CLI agents (such as **OpenCode** or **Claude Code**), as well as any application supporting the OpenAI API standard.
 
 This project is strongly inspired by [opencode-antigravity-auth](https://github.com/NoeFabris/opencode-antigravity-auth).
 
@@ -23,12 +23,12 @@ This project is strongly inspired by [opencode-antigravity-auth](https://github.
 ### Bunx (Recommended)
 You can run the proxy instantly using `bunx`:
 ```bash
-bunx antigravity-proxy@0.7.8
+bunx antigravity-proxy@0.7.9
 ```
 
 ### Docker Hub
 ```bash
-docker run -d -p 3000:3000 -e BASE_URL=http://localhost:3000 --name antigravity-proxy frieserpaldi/antigravity-proxy:0.7.8
+docker run -d -p 3000:3000 -e BASE_URL=http://localhost:3000 --name antigravity-proxy frieserpaldi/antigravity-proxy:0.7.9
 ```
 
 ### Local Execution (Bun)
@@ -116,20 +116,20 @@ Add the following provider to your `~/.config/opencode/opencode.json` under the 
                 "name": "Gemini 3 Flash (Antigravity)",
                 "limit": { "context": 1048576, "output": 65536 }
             },
-            "antigravity-claude-sonnet-4-6": {
-                "name": "Claude Sonnet 4.6 (Antigravity)",
+            "antigravity-claude-sonnet-5-5": {
+                "name": "Claude Sonnet 5.5 (Antigravity)",
                 "limit": { "context": 200000, "output": 64000 }
             },
-            "antigravity-claude-sonnet-4-6-thinking-low": {
-                "name": "Claude Sonnet 4.6 Think Low (Antigravity)",
+            "antigravity-claude-sonnet-5-5-thinking-low": {
+                "name": "Claude Sonnet 5.5 Think Low (Antigravity)",
                 "limit": { "context": 200000, "output": 64000 }
             },
-            "antigravity-claude-sonnet-4-6-thinking-medium": {
-                "name": "Claude Sonnet 4.6 Think Medium (Antigravity)",
+            "antigravity-claude-sonnet-5-5-thinking-medium": {
+                "name": "Claude Sonnet 5.5 Think Medium (Antigravity)",
                 "limit": { "context": 200000, "output": 64000 }
             },
-            "antigravity-claude-sonnet-4-6-thinking-high": {
-                "name": "Claude Sonnet 4.6 Think High (Antigravity)",
+            "antigravity-claude-sonnet-5-5-thinking-high": {
+                "name": "Claude Sonnet 5.5 Think High (Antigravity)",
                 "limit": { "context": 200000, "output": 64000 }
             },
             "antigravity-claude-sonnet-4-5": {
@@ -148,16 +148,16 @@ Add the following provider to your `~/.config/opencode/opencode.json` under the 
                 "name": "Claude Sonnet 4.5 Think High (Antigravity)",
                 "limit": { "context": 200000, "output": 64000 }
             },
-            "antigravity-claude-opus-4-6-thinking-low": {
-                "name": "Claude Opus 4.6 Think Low (Antigravity)",
+            "antigravity-claude-opus-5-5-thinking-low": {
+                "name": "Claude Opus 5.5 Think Low (Antigravity)",
                 "limit": { "context": 1000000, "output": 64000 }
             },
-            "antigravity-claude-opus-4-6-thinking-medium": {
-                "name": "Claude Opus 4.6 Think Medium (Antigravity)",
+            "antigravity-claude-opus-5-5-thinking-medium": {
+                "name": "Claude Opus 5.5 Think Medium (Antigravity)",
                 "limit": { "context": 1000000, "output": 64000 }
             },
-            "antigravity-claude-opus-4-6-thinking-high": {
-                "name": "Claude Opus 4.6 Think High (Antigravity)",
+            "antigravity-claude-opus-5-5-thinking-high": {
+                "name": "Claude Opus 5.5 Think High (Antigravity)",
                 "limit": { "context": 1000000, "output": 64000 }
             },
             "gemini-2.5-flash": {

@@ -69,9 +69,9 @@ const CLAUDE_MODEL_REGISTRY = [
     "claude-3-5-sonnet-20240620",
     "claude-3-5-haiku-20241022",
     "claude-3-opus-20240229",
-    "claude-opus-4-6-thinking",
-    "claude-sonnet-4-6",
-    "claude-sonnet-4-6-thinking",
+    "claude-opus-5-5-thinking",
+    "claude-sonnet-5-5",
+    "claude-sonnet-5-5-thinking",
     "claude-3-sonnet-20240229",
     "claude-3-haiku-20240307"
 ];
@@ -151,17 +151,17 @@ export function transformToGoogleBody(
   // Force Claude model IDs to strip tier for the backend
         if (googleModel.includes("claude")) {
             googleModel = baseModel;
-            if (googleModel === "claude-opus-4-6") googleModel = "claude-opus-4-6-thinking";
-            if (googleModel === "claude-sonnet-4-6") googleModel = "claude-sonnet-4-6-thinking";
+            if (googleModel === "claude-opus-5-5") googleModel = "claude-opus-5-5-thinking";
+            if (googleModel === "claude-sonnet-5-5") googleModel = "claude-sonnet-5-5-thinking";
             if (googleModel === "claude-sonnet-4-5") googleModel = "claude-sonnet-4-5-thinking";
         }
 
     const nativelySupported = [
-      "claude-sonnet-4-6",
-      "claude-sonnet-4-6-thinking",
+      "claude-sonnet-5-5",
+      "claude-sonnet-5-5-thinking",
       "claude-sonnet-4-5", 
       "claude-sonnet-4-5-thinking", 
-      "claude-opus-4-6-thinking",
+      "claude-opus-5-5-thinking",
       "gemini-3.1-pro-high",
       "gemini-3.1-pro-low",
       "gemini-3.1-pro",
@@ -213,7 +213,7 @@ export function transformToGoogleBody(
           }
        } else {
            googleModel = baseModel;
-           if (googleModel === "claude-sonnet-4-6") googleModel = "claude-sonnet-4-6-thinking";
+           if (googleModel === "claude-sonnet-5-5") googleModel = "claude-sonnet-5-5-thinking";
            if (googleModel === "claude-sonnet-4-5") googleModel = "claude-sonnet-4-5-thinking";
        }
    } else {
@@ -241,11 +241,11 @@ export function transformToGoogleBody(
                googleModel = baseModel;
            }
 
-             if (googleModel === "claude-opus-4-6" || googleModel === "antigravity-claude-opus-4-6") {
-                 googleModel = "claude-opus-4-6-thinking";
+             if (googleModel === "claude-opus-5-5" || googleModel === "antigravity-claude-opus-5-5") {
+                 googleModel = "claude-opus-5-5-thinking";
              }
-           if (googleModel === "claude-sonnet-4-6" || googleModel === "antigravity-claude-sonnet-4-6") {
-               googleModel = "claude-sonnet-4-6-thinking";
+           if (googleModel === "claude-sonnet-5-5" || googleModel === "antigravity-claude-sonnet-5-5") {
+               googleModel = "claude-sonnet-5-5-thinking";
            }
            if (googleModel === "claude-sonnet-4-5" || googleModel === "antigravity-claude-sonnet-4-5") {
                googleModel = "claude-sonnet-4-5-thinking";

@@ -39,8 +39,8 @@ describe("Antigravity Proxy Functional Tests", () => {
       headers = provider.options?.headers || {};
       modelIds = Object.keys(provider.models || {});
 
-      if (!modelIds.includes("antigravity-claude-opus-4-6-thinking-high")) {
-        modelIds.push("antigravity-claude-opus-4-6-thinking-high");
+      if (!modelIds.includes("antigravity-claude-opus-5-5-thinking-high")) {
+        modelIds.push("antigravity-claude-opus-5-5-thinking-high");
       }
     } catch (e: any) {
       throw new Error(`Failed to initialize test: ${e.message}`);
