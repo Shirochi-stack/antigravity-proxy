@@ -184,7 +184,7 @@ export async function getBestAccount(pool?: 'cli' | 'sandbox', model?: string, c
   
   if (pool) {
     let candidates = usable.filter(a => {
-      if (model && a.capabilities?.[model] === false) return false;
+      if (model && isModelFlaggedUnsupported(a, model, now)) return false;
       if (isAccountQuotaExhausted(a, model)) return false;
       const expiry = cooldownMap.get(`${a.email}|${pool}|${family}`);
       return !expiry || expiry <= now;
@@ -214,7 +214,7 @@ export async function getBestAccount(pool?: 'cli' | 'sandbox', model?: string, c
     }
 
     if (candidates.length === 0 && !skipRescue) {
-      candidates = usable.filter(a => !(model && a.capabilities?.[model] === false))
+      candidates = usable.filter(a => !(model && isModelFlaggedUnsupported(a, model, now)))
         .filter(a => {
           const expiry = cooldownMap.get(`${a.email}|${pool}|${family}`);
           return !expiry || expiry <= now + 300000;
@@ -327,11 +327,22 @@ export function parseDuration(val: string): number {
   return amount * multipliers[match[2]];
 }
 
+// Google rolls models out per account, so a "not found" only holds for a while.
+const MODEL_UNSUPPORTED_TTL_MS = 6 * 60 * 60 * 1000;
+
+function isModelFlaggedUnsupported(account: AntigravityAccount, model: string, now: number): boolean {
+    if (account.capabilities?.[model] !== false) return false;
+    const flaggedAt = account.capabilityFlaggedAt?.[model];
+    return !!flaggedAt && now - flaggedAt < MODEL_UNSUPPORTED_TTL_MS;
+}
+
 export function flagModelUnsupported(email: string, model: string) {
     const account = accounts.find(a => a.email === email);
     if (account) {
         if (!account.capabilities) account.capabilities = {};
         account.capabilities[model] = false;
+        if (!account.capabilityFlaggedAt) account.capabilityFlaggedAt = {};
+        account.capabilityFlaggedAt[model] = Date.now();
         saveAccounts(accounts);
     }
 }

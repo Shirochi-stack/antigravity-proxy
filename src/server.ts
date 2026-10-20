@@ -164,6 +164,10 @@ Bun.serve({
       const sessionId = firstMsg ? new Bun.CryptoHasher("sha256").update(stableSeed).digest("hex") : crypto.randomUUID();
 
         let lastStatus = 0;
+        // Retried on the next endpoint after a model 404: new models reach prod and daily at different times.
+        let pinnedAccount: AntigravityAccount | null = null;
+        // Sandbox endpoint for this account: a newly picked account starts at the first one.
+        let sandboxEndpointStep = 0;
         let lastGoogleUrl = "";
 
         while (attempts < MAX_ATTEMPTS) {
@@ -173,7 +177,7 @@ Bun.serve({
                 const delayMs = Math.min(500 * attempts, 3000);
                 await new Promise(r => setTimeout(r, delayMs));
                 
-                if (!isSandboxOnlyModel && !isCliOnlyModel && lastStatus !== 503) {
+                if (!isSandboxOnlyModel && !isCliOnlyModel && lastStatus !== 503 && !pinnedAccount) {
                     useCliPool = !useCliPool;
                     console.log(`[Switch] Switching to ${useCliPool ? 'CLI' : 'Sandbox'} pool for attempt ${attempts}`);
                 } else {
@@ -182,6 +186,15 @@ Bun.serve({
             }
 
             let account = await getBestAccount(useCliPool ? "cli" : "sandbox", openaiBody.model, clientId, triedEmails, true, forceRoundRobin);
+            if (pinnedAccount) {
+                account = pinnedAccount;
+                pinnedAccount = null;
+                sandboxEndpointStep++;
+            } else if (lastStatus === 503) {
+                sandboxEndpointStep++;
+            } else {
+                sandboxEndpointStep = 0;
+            }
             
             if (!account && !isSandboxOnlyModel && !isCliOnlyModel) {
                 console.log(`[Manager] No READY accounts in ${useCliPool ? 'CLI' : 'Sandbox'} pool, trying the other pool first...`);
@@ -217,7 +230,7 @@ Bun.serve({
                 const cliEndpointIndex = isClaudeModel ? CLI_ENDPOINTS.length - 1 : Math.min(attempts - 1, CLI_ENDPOINTS.length - 1);
                 GOOGLE_URL = CLI_ENDPOINTS[cliEndpointIndex];
             } else {
-                const sandboxEndpointIndex = Math.min(attempts - 1, SANDBOX_ENDPOINTS.length - 1);
+                const sandboxEndpointIndex = Math.min(sandboxEndpointStep, SANDBOX_ENDPOINTS.length - 1);
                 GOOGLE_URL = SANDBOX_ENDPOINTS[sandboxEndpointIndex];
             }
 
@@ -286,6 +299,12 @@ Bun.serve({
                         });
                         continue;
                     } else if (parsedError.isModelUnsupported) {
+                       const endpointIndex = SANDBOX_ENDPOINTS.indexOf(GOOGLE_URL);
+                       if (!useCliPool && endpointIndex >= 0 && endpointIndex < SANDBOX_ENDPOINTS.length - 1 && attempts < MAX_ATTEMPTS) {
+                           console.log(`[Model] ${openaiBody.model} not found on ${GOOGLE_URL.split('/')[2]} for ${account.email}, trying ${SANDBOX_ENDPOINTS[endpointIndex + 1].split('/')[2]}...`);
+                           pinnedAccount = account;
+                           continue;
+                       }
                        console.log(`[Model] Unsupported model ${openaiBody.model} for ${account.email}, marking capability.`);
                        flagModelUnsupported(account.email, openaiBody.model);
                    }

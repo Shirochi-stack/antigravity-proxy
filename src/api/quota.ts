@@ -1,4 +1,4 @@
-import { getImpersonationHeaders, generateFingerprint } from "../utils/headers";
+import { getImpersonationHeaders, generateFingerprint, getAntigravityUserAgent } from "../utils/headers";
 import { type AntigravityAccount } from "../auth/types";
 import { getAccounts, saveAccounts } from "../auth/manager";
 import { refreshAccessToken } from "../auth/oauth";
@@ -18,7 +18,8 @@ async function fetchAvailableModels(account: AntigravityAccount): Promise<Respon
         method: "POST",
         headers: {
           ...getImpersonationHeaders(account.accessToken!, account.fingerprint),
-          "User-Agent": "antigravity",
+          // The catalog depends on the client version: unversioned clients miss newer models.
+          "User-Agent": getAntigravityUserAgent(account.fingerprint),
         },
         body: JSON.stringify({
           project: account.projectId

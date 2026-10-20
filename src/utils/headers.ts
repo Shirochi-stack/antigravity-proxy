@@ -16,6 +16,24 @@ export const OAUTH_CONFIG = {
 };
 
 const ANTIGRAVITY_VERSION = "2.23.1";
+// Glossarion rewrites ANTIGRAVITY_VERSION with a version it scrapes, which can lag far
+// behind the app. Google hides newer models (Gemini 4 Argon, Gemini 3.7/3.8 Flash tiers)
+// from older clients, so never report a version older than this.
+const MIN_CLIENT_VERSION = "2.23.1";
+
+function compareVersions(a: string, b: string): number {
+  const pa = a.split(".").map(n => parseInt(n, 10) || 0);
+  const pb = b.split(".").map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] || 0) - (pb[i] || 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+export const CLIENT_VERSION = compareVersions(ANTIGRAVITY_VERSION, MIN_CLIENT_VERSION) >= 0
+  ? ANTIGRAVITY_VERSION
+  : MIN_CLIENT_VERSION;
 
 const PLATFORMS = ["darwin/x64", "darwin/arm64"] as const;
 
@@ -91,7 +109,7 @@ export function generateFingerprint(email?: string): DeviceFingerprint {
   const sqmId = crypto.randomUUID();
 
   return {
-    userAgent: `antigravity/${ANTIGRAVITY_VERSION} ${platform}`,
+    userAgent: `antigravity/${CLIENT_VERSION} ${platform}`,
     quotaUser: email ? generateStableQuotaUser(email) : generateQuotaUser(),
     deviceId: email ? generateStableQuotaUser(email).replace('device-', '') : generateDeviceId(),
     platform: platform,
@@ -113,12 +131,17 @@ export function generateFingerprint(email?: string): DeviceFingerprint {
   };
 }
 
+// Stored fingerprints keep the user agent they were created with; build it from the current version.
+export function getAntigravityUserAgent(fingerprint?: DeviceFingerprint): string {
+  return `antigravity/${CLIENT_VERSION} ${fingerprint?.platform || "darwin/arm64"}`;
+}
+
 export function getImpersonationHeaders(accessToken: string, fingerprint?: DeviceFingerprint, model?: string): Record<string, string> {
   const fp = fingerprint || generateFingerprint();
   const headers: Record<string, string> = {
     "Authorization": `Bearer ${accessToken}`,
     "Content-Type": "application/json",
-    "User-Agent": `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/138.0.7204.235 Electron/37.3.1 Safari/537.36`,
+    "User-Agent": `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${CLIENT_VERSION} Chrome/138.0.7204.235 Electron/37.3.1 Safari/537.36`,
     "X-Goog-Api-Client": fp.apiClient,
     "X-Goog-QuotaUser": fp.quotaUser,
     "X-Client-Device-Id": fp.deviceId,

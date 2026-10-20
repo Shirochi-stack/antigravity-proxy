@@ -50,6 +50,8 @@ export interface AntigravityAccount {
     message?: string;
   };
   capabilities?: Record<string, boolean>;
+  // When each capabilities[model] = false was recorded; flags without one are ignored.
+  capabilityFlaggedAt?: Record<string, number>;
   
   // Quota info (cached)
   quota?: Array<{
