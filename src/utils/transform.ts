@@ -1,6 +1,7 @@
 import { getSignature, cacheSignature } from "./cache";
 import { cleanJSONSchemaForAntigravity } from "./schema";
 import { getProxyConfig } from "../config/manager";
+import { getCatalogModelId } from "./model-catalog";
 
 const TOOL_NAME_REMAP_CACHE = new Map<string, string>();
 
@@ -170,11 +171,14 @@ export function transformToGoogleBody(
           ? GEMINI_35_FLASH_LOW_WIRE_MODEL
           : undefined;
 
-  // Untiered Gemini 4 Argon defaults to medium, like Claude 5.5.
-  const gemini4ArgonWireModel = baseModel === GEMINI_4_ARGON_MODEL
-      ? `${GEMINI_4_ARGON_MODEL}-${extractedTier || "medium"}`
+  // Untiered Gemini 4 Argon defaults to medium, like Claude 5.5. Prefer the ID Google's catalog
+  // lists under the app's display name, e.g. "Gemini 4 Argon (High)".
+  const gemini4ArgonThinkingLevel = baseModel === GEMINI_4_ARGON_MODEL ? (extractedTier || "medium") : undefined;
+  const gemini4ArgonWireModel = gemini4ArgonThinkingLevel
+      ? getCatalogModelId(`Gemini 4 Argon (${gemini4ArgonThinkingLevel[0].toUpperCase()}${gemini4ArgonThinkingLevel.slice(1)})`) ||
+        getCatalogModelId("Gemini 4 Argon") ||
+        `${GEMINI_4_ARGON_MODEL}-${gemini4ArgonThinkingLevel}`
       : undefined;
-  const gemini4ArgonThinkingLevel = gemini4ArgonWireModel?.split("-").pop();
 
   const claude55WireModel = (CLAUDE_55_MODELS as readonly string[]).includes(resolvedModel) ? resolvedModel : undefined;
   const claude55ThinkingLevel = claude55WireModel?.split("-").pop();

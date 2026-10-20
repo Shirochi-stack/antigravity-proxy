@@ -13,6 +13,10 @@ import { transformToGoogleBody, transformGoogleEventToOpenAI, createOpenAIStream
 import { getImpersonationHeaders, getGeminiCliHeaders, generateFingerprint } from "./utils/headers";
 import { refreshAllQuotas, fetchQuota, supportedModelsCache } from "./api/quota";
 import { parseGoogleError } from "./utils/errors";
+import { getCatalogModelId } from "./utils/model-catalog";
+
+// Last catalog fetch per account, for models resolved through the catalog (Gemini 4 Argon).
+const catalogFetchedAt = new Map<string, number>();
 
 const logBuffer: string[] = [];
 const MAX_LOGS = 200;
@@ -242,6 +246,16 @@ Bun.serve({
           let effectiveProjectId = account.projectId!;
           ensureFingerprint(account);
           
+          // Glossarion sends the first request right after starting the proxy, before the periodic
+          // catalog refresh, so look up Argon's catalog ID for this account first.
+          if (modelLower.includes("gemini-4-argon") && !getCatalogModelId("Gemini 4 Argon (High)") &&
+              Date.now() - (catalogFetchedAt.get(account.email) || 0) > 5 * 60 * 1000) {
+              catalogFetchedAt.set(account.email, Date.now());
+              try { await fetchQuota(account); } catch {}
+              if (!getCatalogModelId("Gemini 4 Argon (High)") && !getCatalogModelId("Gemini 4 Argon")) {
+                  console.log(`[Catalog] No "Gemini 4 Argon" entry in ${account.email}'s model catalog; sending ${modelLower.replace(/^antigravity-/, "")}.`);
+              }
+          }
           const googleBody = transformToGoogleBody(openaiBody, effectiveProjectId, useCliPool, "", sessionId, aggressive); 
 
           const isClaudeModelTarget = googleBody.model.toLowerCase().includes("claude");
@@ -269,6 +283,7 @@ Bun.serve({
               signal: controller.signal
             };
             let googleRes = await fetch(GOOGLE_URL, fetchInit);
+            let firstNotFound: { url: string, text: string } | null = null;
 
             // Models roll out per account and per host (prod often first), so on a model 404
             // try the remaining sandbox endpoints with the same account within this attempt.
@@ -281,9 +296,17 @@ Bun.serve({
                 googleRes = new Response(notFoundText, { status: 404 });
                 break;
               }
+              firstNotFound = firstNotFound || { url: GOOGLE_URL, text: notFoundText };
               console.log(`[Model] ${openaiBody.model} not found on ${GOOGLE_URL.split('/')[2]} for ${account.email}, trying ${SANDBOX_ENDPOINTS[nextIndex].split('/')[2]}...`);
               GOOGLE_URL = SANDBOX_ENDPOINTS[nextIndex];
               googleRes = await fetch(GOOGLE_URL, fetchInit);
+            }
+            // Prod answers 429 to Antigravity chat even with quota left; report the model 404 instead.
+            if (firstNotFound && !googleRes.ok && googleRes.status !== 404) {
+              await googleRes.body?.cancel();
+              console.log(`[Model] ${openaiBody.model} fallback on ${GOOGLE_URL.split('/')[2]} returned ${googleRes.status}; reporting the 404 from ${firstNotFound.url.split('/')[2]}.`);
+              GOOGLE_URL = firstNotFound.url;
+              googleRes = new Response(firstNotFound.text, { status: 404 });
             }
             clearTimeout(timeoutId);
 

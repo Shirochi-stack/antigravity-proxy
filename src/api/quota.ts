@@ -2,6 +2,7 @@ import { getImpersonationHeaders, generateFingerprint, getAntigravityUserAgent }
 import { type AntigravityAccount } from "../auth/types";
 import { getAccounts, saveAccounts } from "../auth/manager";
 import { refreshAccessToken } from "../auth/oauth";
+import { rememberCatalogModel } from "../utils/model-catalog";
 
 // The daily host lists the models chat requests are routed to (e.g. Claude 5.5);
 // prod still lists retired ones, so it is only a fallback.
@@ -97,6 +98,9 @@ function parseQuotaResponse(data: any): AntigravityAccount['quota'] | null {
     const groups = new Map<string, any>();
 
     for (const [key, m] of entries) {
+        const catalogLabel = m.displayMetadata?.label || m.displayName;
+        if (catalogLabel && typeof key === "string") rememberCatalogModel(catalogLabel, key.replace("models/", ""));
+
         if (!m.quotaInfo) continue;
 
         const label = m.displayMetadata?.label || m.displayName || m.model?.name || "Unknown";

@@ -2,6 +2,7 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { transformToGoogleBody, transformGoogleEventToOpenAI } from "../../src/utils/transform";
 import { loadProxyConfig } from "../../src/config/manager";
+import { rememberCatalogModel } from "../../src/utils/model-catalog";
 
 beforeAll(async () => {
   await loadProxyConfig();
@@ -599,5 +600,18 @@ describe("Unit Tests: transformGoogleEventToOpenAI", () => {
 
     expect(result.choices[0].finish_reason).toBeNull();
     expect(result.provider_block_reason).toBeNull();
+  });
+});
+
+describe("Unit Tests: catalog model IDs", () => {
+  test("Gemini 4 Argon uses the ID Google lists under its display name", () => {
+    rememberCatalogModel("Gemini 4 Argon (High)", "gemini-4-argon-rollout-high");
+    const result = transformToGoogleBody({
+      model: "antigravity-gemini-4-argon-high",
+      messages: [{ role: "user", content: "Hi" }]
+    }, "p", false, "us-central1");
+
+    expect(result.model).toBe("gemini-4-argon-rollout-high");
+    expect(result.request.generationConfig.thinkingConfig.thinkingLevel).toBe("high");
   });
 });
