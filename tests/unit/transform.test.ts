@@ -49,6 +49,33 @@ describe("Unit Tests: transformToGoogleBody", () => {
   });
 
   for (const tier of ["low", "medium", "high"]) {
+    test(`Gemini 4 Argon ${tier} passes its tiered ID through`, () => {
+      for (const isCli of [false, true]) {
+        const result = transformToGoogleBody({
+          model: `antigravity-gemini-4-argon-${tier}`,
+          messages: [{ role: "user", content: "Hi" }]
+        }, "p", isCli, "us-central1");
+        const thinkingConfig = result.request.generationConfig.thinkingConfig;
+
+        expect(result.model).toBe(`gemini-4-argon-${tier}`);
+        expect(thinkingConfig.includeThoughts).toBe(true);
+        expect(thinkingConfig.thinkingLevel).toBe(tier);
+        expect(thinkingConfig.thinkingBudget).toBeUndefined();
+      }
+    });
+  }
+
+  test("Gemini 4 Argon defaults to medium", () => {
+    const result = transformToGoogleBody({
+      model: "gemini-4-argon",
+      messages: [{ role: "user", content: "Hi" }]
+    }, "p", false, "us-central1");
+
+    expect(result.model).toBe("gemini-4-argon-medium");
+    expect(result.request.generationConfig.thinkingConfig.thinkingLevel).toBe("medium");
+  });
+
+  for (const tier of ["low", "medium", "high"]) {
     test(`Gemini 3.8 Flash ${tier} alias mapping`, () => {
       const openaiBody = {
         model: `gemini-3.8-flash-${tier}`,

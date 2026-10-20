@@ -64,6 +64,18 @@ Add the following provider to your `~/.config/opencode/opencode.json` under the 
             "baseURL": "http://localhost:3000/v1"
         },
         "models": {
+            "gemini-4-argon-low": {
+                "name": "Gemini 4 Argon Low (Antigravity)",
+                "limit": { "context": 1048576, "output": 65536 }
+            },
+            "gemini-4-argon-medium": {
+                "name": "Gemini 4 Argon Medium (Antigravity)",
+                "limit": { "context": 1048576, "output": 65536 }
+            },
+            "gemini-4-argon-high": {
+                "name": "Gemini 4 Argon High (Antigravity)",
+                "limit": { "context": 1048576, "output": 65536 }
+            },
             "gemini-3.8-flash-low": {
                 "name": "Gemini 3.8 Flash Low (Antigravity)",
                 "limit": { "context": 1048576, "output": 65536 }

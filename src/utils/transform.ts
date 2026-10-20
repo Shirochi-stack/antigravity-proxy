@@ -4,6 +4,7 @@ import { getProxyConfig } from "../config/manager";
 
 const TOOL_NAME_REMAP_CACHE = new Map<string, string>();
 
+const GEMINI_4_ARGON_MODEL = "gemini-4-argon";
 const GEMINI_38_FLASH_MODEL = "gemini-3.8-flash";
 const GEMINI_38_FLASH_WIRE_MODEL = "gemini-3.8-flash-tiered";
 const GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
@@ -32,6 +33,12 @@ export const GEMINI_38_FLASH_ALIASES = [
   "gemini-3.8-flash-low",
   "gemini-3.8-flash-medium",
   "gemini-3.8-flash-high"
+] as const;
+// Gemini 4 Argon wire IDs carry the thinking tier (Antigravity 2.23.1 model list).
+export const GEMINI_4_ARGON_MODELS = [
+  "gemini-4-argon-low",
+  "gemini-4-argon-medium",
+  "gemini-4-argon-high"
 ] as const;
 // Claude 5.5 wire IDs carry the thinking tier (daily-cloudcode-pa catalog).
 export const CLAUDE_55_MODELS = [
@@ -163,6 +170,12 @@ export function transformToGoogleBody(
           ? GEMINI_35_FLASH_LOW_WIRE_MODEL
           : undefined;
 
+  // Untiered Gemini 4 Argon defaults to medium, like Claude 5.5.
+  const gemini4ArgonWireModel = baseModel === GEMINI_4_ARGON_MODEL
+      ? `${GEMINI_4_ARGON_MODEL}-${extractedTier || "medium"}`
+      : undefined;
+  const gemini4ArgonThinkingLevel = gemini4ArgonWireModel?.split("-").pop();
+
   const claude55WireModel = (CLAUDE_55_MODELS as readonly string[]).includes(resolvedModel) ? resolvedModel : undefined;
   const claude55ThinkingLevel = claude55WireModel?.split("-").pop();
 
@@ -173,6 +186,8 @@ export function transformToGoogleBody(
 
     const nativelySupported = [
       ...CLAUDE_55_MODELS,
+      ...GEMINI_4_ARGON_MODELS,
+      GEMINI_4_ARGON_MODEL,
       "gemini-3.1-pro-high",
       "gemini-3.1-pro-low",
       "gemini-3.1-pro",
@@ -203,6 +218,8 @@ export function transformToGoogleBody(
       if (!googleModel.includes("claude")) {
           if (gemini35FlashWireModel) {
               googleModel = gemini35FlashWireModel;
+          } else if (gemini4ArgonWireModel) {
+              googleModel = gemini4ArgonWireModel;
           } else if (isGemini38Flash) {
               googleModel = GEMINI_38_FLASH_WIRE_MODEL;
           } else if (isGemini37Flash) {
@@ -233,6 +250,8 @@ export function transformToGoogleBody(
        if (isNative) {
            if (gemini35FlashWireModel) {
                googleModel = gemini35FlashWireModel;
+           } else if (gemini4ArgonWireModel) {
+               googleModel = gemini4ArgonWireModel;
            } else if (isGemini38Flash) {
                googleModel = GEMINI_38_FLASH_WIRE_MODEL;
            } else if (isGemini37Flash) {
@@ -276,7 +295,7 @@ export function transformToGoogleBody(
         response: responseObj
       };
       
-      if (googleModel.includes("claude") || googleModel.includes("gemini-3")) {
+      if (googleModel.includes("claude") || googleModel.includes("gemini-3") || gemini4ArgonWireModel) {
           funcResp.id = msg.tool_call_id;
       }
 
@@ -338,7 +357,7 @@ export function transformToGoogleBody(
               args: typeof tc.function.arguments === 'string' ? JSON.parse(tc.function.arguments || "{}") : tc.function.arguments
             };
             
-            if (googleModel.includes("claude") || googleModel.includes("gemini-3")) {
+            if (googleModel.includes("claude") || googleModel.includes("gemini-3") || gemini4ArgonWireModel) {
                 funcCall.id = tc.id;
             }
 
@@ -436,7 +455,7 @@ You are pair programming with a USER to solve their coding task. The task may re
 
   const isGemini31ProHighWireModel = googleModel === GEMINI_31_PRO_HIGH_WIRE_MODEL;
 
-  if (isThinkingModel || googleModel.includes("gemini-3") || isGemini31ProHighWireModel) {
+  if (isThinkingModel || googleModel.includes("gemini-3") || gemini4ArgonWireModel || isGemini31ProHighWireModel) {
     if (gemini35FlashThinkingLevel) {
       googleRequest.generationConfig.thinkingConfig = {
         includeThoughts: true,
@@ -446,6 +465,11 @@ You are pair programming with a USER to solve their coding task. The task may re
       googleRequest.generationConfig.thinkingConfig = {
         includeThoughts: true,
         thinkingLevel: claude55ThinkingLevel
+      };
+    } else if (gemini4ArgonThinkingLevel) {
+      googleRequest.generationConfig.thinkingConfig = {
+        includeThoughts: true,
+        thinkingLevel: gemini4ArgonThinkingLevel
       };
     } else if (isGemini38Flash) {
       googleRequest.generationConfig.thinkingConfig = {

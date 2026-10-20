@@ -9,7 +9,7 @@ const APP_VERSION = pkg.version || "0.0.0";
 import { initManager, getBestAccount, updateAccountUsage, addAccount, getAccounts, removeAccount, getStrategy, setStrategy, saveAccounts, emitAccountFlash, eventBus, getEarliestReset, markCooldown, ensureFingerprint, regenerateFingerprint, getCooldowns, resetAccount, flagAccountChallenge, flagModelUnsupported, updateAccountProject, getFamilyName, resetAllCooldowns } from "./auth/manager";
 import { type SelectionStrategy, type AntigravityAccount } from "./auth/types";
 import { generateAuthUrl, exchangeCode, getUserEmail, getProjectId } from "./auth/oauth";
-import { transformToGoogleBody, transformGoogleEventToOpenAI, createOpenAIStreamTransformer, getOriginalToolName, GEMINI_35_FLASH_ALIASES, GEMINI_37_FLASH_ALIASES, GEMINI_38_FLASH_ALIASES } from "./utils/transform";
+import { transformToGoogleBody, transformGoogleEventToOpenAI, createOpenAIStreamTransformer, getOriginalToolName, GEMINI_35_FLASH_ALIASES, GEMINI_37_FLASH_ALIASES, GEMINI_38_FLASH_ALIASES, GEMINI_4_ARGON_MODELS } from "./utils/transform";
 import { getImpersonationHeaders, getGeminiCliHeaders, generateFingerprint } from "./utils/headers";
 import { refreshAllQuotas, fetchQuota, supportedModelsCache } from "./api/quota";
 import { parseGoogleError } from "./utils/errors";
@@ -77,7 +77,8 @@ Bun.serve({
             ...supportedModelsCache,
             ...GEMINI_35_FLASH_ALIASES,
             ...GEMINI_37_FLASH_ALIASES,
-            ...GEMINI_38_FLASH_ALIASES
+            ...GEMINI_38_FLASH_ALIASES,
+            ...GEMINI_4_ARGON_MODELS
         ]);
         const models = Array.from(supportedModels).sort().map(id => ({
             id,
@@ -104,6 +105,7 @@ Bun.serve({
       const modelLower = openaiBody.model.toLowerCase();
       const isClaudeModel = modelLower.includes("claude");
       const isGptModel = modelLower.includes("gpt");
+      const isGemini4Argon = modelLower.includes("gemini-4-argon");
       const isGemini38Flash = modelLower.includes("gemini-3.8-flash");
       const isGemini37Flash = modelLower.includes("gemini-3.7-flash");
       const isGemini31ProTier = /gemini-3\.1-pro-(low|high)$/.test(modelLower);
@@ -122,7 +124,7 @@ Bun.serve({
 
           const isExplicitAntigravity = modelLower.includes("antigravity-");
           const isExplicitSandboxModel = isAntigravityThinking || isExplicitAntigravity ||
-                                         isGemini38Flash || isGemini37Flash || isGemini31ProTier ||
+                                         isGemini4Argon || isGemini38Flash || isGemini37Flash || isGemini31ProTier ||
                                          isGemini35FlashAlias || modelLower.includes("image");
 
           useCliPool = !isExplicitSandboxModel && (
@@ -146,7 +148,7 @@ Bun.serve({
       // GPT and Claude models are Sandbox-preferred. Explicit antigravity- models are also Sandbox-only.
       const isExplicitAntigravity = modelLower.includes("antigravity-");
       const isSandboxOnlyModel = modelLower.includes("gpt") || isExplicitAntigravity ||
-                                 isGemini38Flash || isGemini37Flash || isGemini31ProTier ||
+                                 isGemini4Argon || isGemini38Flash || isGemini37Flash || isGemini31ProTier ||
                                  isGemini35FlashAlias;
       const isCliOnlyModel = false;
       const CLAUDE_REGIONS = ["us-central1", "us-east5", "europe-west1"];
