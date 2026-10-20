@@ -164,8 +164,6 @@ Bun.serve({
       const sessionId = firstMsg ? new Bun.CryptoHasher("sha256").update(stableSeed).digest("hex") : crypto.randomUUID();
 
         let lastStatus = 0;
-        // Retried on the next endpoint after a model 404: new models reach prod and daily at different times.
-        let pinnedAccount: AntigravityAccount | null = null;
         // Sandbox endpoint for this account: a newly picked account starts at the first one.
         let sandboxEndpointStep = 0;
         let lastGoogleUrl = "";
@@ -177,7 +175,7 @@ Bun.serve({
                 const delayMs = Math.min(500 * attempts, 3000);
                 await new Promise(r => setTimeout(r, delayMs));
                 
-                if (!isSandboxOnlyModel && !isCliOnlyModel && lastStatus !== 503 && !pinnedAccount) {
+                if (!isSandboxOnlyModel && !isCliOnlyModel && lastStatus !== 503) {
                     useCliPool = !useCliPool;
                     console.log(`[Switch] Switching to ${useCliPool ? 'CLI' : 'Sandbox'} pool for attempt ${attempts}`);
                 } else {
@@ -186,11 +184,7 @@ Bun.serve({
             }
 
             let account = await getBestAccount(useCliPool ? "cli" : "sandbox", openaiBody.model, clientId, triedEmails, true, forceRoundRobin);
-            if (pinnedAccount) {
-                account = pinnedAccount;
-                pinnedAccount = null;
-                sandboxEndpointStep++;
-            } else if (lastStatus === 503) {
+            if (lastStatus === 503) {
                 sandboxEndpointStep++;
             } else {
                 sandboxEndpointStep = 0;
@@ -268,12 +262,29 @@ Bun.serve({
               await new Promise(r => setTimeout(r, jitterMs));
             }
 
-            const googleRes = await fetch(GOOGLE_URL, {
+            const fetchInit = {
               method: "POST",
               headers: headers,
               body: JSON.stringify(googleBody),
               signal: controller.signal
-            });
+            };
+            let googleRes = await fetch(GOOGLE_URL, fetchInit);
+
+            // Models roll out per account and per host (prod often first), so on a model 404
+            // try the remaining sandbox endpoints with the same account within this attempt.
+            // Glossarion allows a forced account a single attempt.
+            while (!useCliPool && googleRes.status === 404) {
+              const nextIndex = SANDBOX_ENDPOINTS.indexOf(GOOGLE_URL) + 1;
+              if (nextIndex <= 0 || nextIndex >= SANDBOX_ENDPOINTS.length) break;
+              const notFoundText = await googleRes.text();
+              if (!parseGoogleError(notFoundText).isModelUnsupported) {
+                googleRes = new Response(notFoundText, { status: 404 });
+                break;
+              }
+              console.log(`[Model] ${openaiBody.model} not found on ${GOOGLE_URL.split('/')[2]} for ${account.email}, trying ${SANDBOX_ENDPOINTS[nextIndex].split('/')[2]}...`);
+              GOOGLE_URL = SANDBOX_ENDPOINTS[nextIndex];
+              googleRes = await fetch(GOOGLE_URL, fetchInit);
+            }
             clearTimeout(timeoutId);
 
             if (!googleRes.ok) {
@@ -299,12 +310,6 @@ Bun.serve({
                         });
                         continue;
                     } else if (parsedError.isModelUnsupported) {
-                       const endpointIndex = SANDBOX_ENDPOINTS.indexOf(GOOGLE_URL);
-                       if (!useCliPool && endpointIndex >= 0 && endpointIndex < SANDBOX_ENDPOINTS.length - 1 && attempts < MAX_ATTEMPTS) {
-                           console.log(`[Model] ${openaiBody.model} not found on ${GOOGLE_URL.split('/')[2]} for ${account.email}, trying ${SANDBOX_ENDPOINTS[endpointIndex + 1].split('/')[2]}...`);
-                           pinnedAccount = account;
-                           continue;
-                       }
                        console.log(`[Model] Unsupported model ${openaiBody.model} for ${account.email}, marking capability.`);
                        flagModelUnsupported(account.email, openaiBody.model);
                    }
