@@ -172,11 +172,11 @@ export function transformToGoogleBody(
           : undefined;
 
   // Untiered Gemini 4 Argon defaults to medium, like Claude 5.5. Prefer the ID Google's catalog
-  // lists under the app's display name, e.g. "Gemini 4 Argon (High)".
+  // lists under the app's display name, e.g. "Gemini 4 Argon (High)". The untiered "Gemini 4 Argon"
+  // entry is gemini-4-argon-disabled, so only tiered names are used.
   const gemini4ArgonThinkingLevel = baseModel === GEMINI_4_ARGON_MODEL ? (extractedTier || "medium") : undefined;
   const gemini4ArgonWireModel = gemini4ArgonThinkingLevel
       ? getCatalogModelId(`Gemini 4 Argon (${gemini4ArgonThinkingLevel[0].toUpperCase()}${gemini4ArgonThinkingLevel.slice(1)})`) ||
-        getCatalogModelId("Gemini 4 Argon") ||
         `${GEMINI_4_ARGON_MODEL}-${gemini4ArgonThinkingLevel}`
       : undefined;
 

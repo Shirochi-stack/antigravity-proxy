@@ -252,7 +252,7 @@ Bun.serve({
               Date.now() - (catalogFetchedAt.get(account.email) || 0) > 5 * 60 * 1000) {
               catalogFetchedAt.set(account.email, Date.now());
               try { await fetchQuota(account); } catch {}
-              if (!getCatalogModelId("Gemini 4 Argon (High)") && !getCatalogModelId("Gemini 4 Argon")) {
+              if (!getCatalogModelId("Gemini 4 Argon (High)")) {
                   console.log(`[Catalog] No "Gemini 4 Argon" entry in ${account.email}'s model catalog; sending ${modelLower.replace(/^antigravity-/, "")}.`);
               }
           }

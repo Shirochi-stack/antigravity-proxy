@@ -109,7 +109,7 @@ export function generateFingerprint(email?: string): DeviceFingerprint {
   const sqmId = crypto.randomUUID();
 
   return {
-    userAgent: `antigravity/${CLIENT_VERSION} ${platform}`,
+    userAgent: `antigravity/hub/${CLIENT_VERSION} (${platform})`,
     quotaUser: email ? generateStableQuotaUser(email) : generateQuotaUser(),
     deviceId: email ? generateStableQuotaUser(email).replace('device-', '') : generateDeviceId(),
     platform: platform,
@@ -131,9 +131,12 @@ export function generateFingerprint(email?: string): DeviceFingerprint {
   };
 }
 
-// Stored fingerprints keep the user agent they were created with; build it from the current version.
+// The Antigravity app (language server, --subclient_type hub) identifies itself as
+// "antigravity/hub/<version> (<os>/<arch>)". Google only lists and serves some models, such as
+// Gemini 4 Argon, to that user agent; the Electron one now gets 404 even for Gemini 3.8 Flash.
+// Stored fingerprints keep the user agent they were created with, so build it here.
 export function getAntigravityUserAgent(fingerprint?: DeviceFingerprint): string {
-  return `antigravity/${CLIENT_VERSION} ${fingerprint?.platform || "darwin/arm64"}`;
+  return `antigravity/hub/${CLIENT_VERSION} (${fingerprint?.platform || "darwin/arm64"})`;
 }
 
 export function getImpersonationHeaders(accessToken: string, fingerprint?: DeviceFingerprint, model?: string): Record<string, string> {
@@ -141,7 +144,7 @@ export function getImpersonationHeaders(accessToken: string, fingerprint?: Devic
   const headers: Record<string, string> = {
     "Authorization": `Bearer ${accessToken}`,
     "Content-Type": "application/json",
-    "User-Agent": `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${CLIENT_VERSION} Chrome/138.0.7204.235 Electron/37.3.1 Safari/537.36`,
+    "User-Agent": getAntigravityUserAgent(fp),
     "X-Goog-Api-Client": fp.apiClient,
     "X-Goog-QuotaUser": fp.quotaUser,
     "X-Client-Device-Id": fp.deviceId,
